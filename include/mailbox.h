@@ -4,7 +4,7 @@
 #include "gpio.h"
 
 /* Mailbox Registers Address */
-#define MAILBOX_BASE    ((unsigned int*)(MMIO_BASE + 0x0000b880))
+#define MAILBOX_BASE    MMIO_BASE + 0x0000b880
 #define MAILBOX_READ    ((unsigned int*)(MAILBOX_BASE + 0x0))
 #define MAILBOX_STATUS  ((unsigned int*)(MAILBOX_BASE + 0x18))
 #define MAILBOX_WRITE   ((unsigned int*)(MAILBOX_BASE + 0x20))
