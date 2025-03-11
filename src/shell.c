@@ -44,7 +44,7 @@ void cmd_mbox() {
 
 void shell() {
     char str[32];
-    char help_msg[] = "help\t: print this help menu\nhello\t: print Hello World!\nmailbox\t: print hardware's information\n";
+    char help_msg[150] = "help\t: print this help menu\nhello\t: print Hello World!\nmailbox\t: print hardware's information\r\n";
 
     while(1) {
         uart_puts("# ");

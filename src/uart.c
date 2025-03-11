@@ -9,11 +9,22 @@ void delay(unsigned int cycles) {
 
 
 void init_uart() {
+    register unsigned int selector;
+
+    /* Initialize UART */
+    *AUXENB |= 1;
+    *AUX_MU_CNTL_REG = 0;  // Disable transmitter and receiver
+    *AUX_MU_IER_REG = 0;   // Disable interrupt
+    *AUX_MU_LCR_REG = 3;   // Set the data size to 8 bit
+    *AUX_MU_MCR_REG = 0;   // Don’t need auto flow control.
+    *AUX_MU_BAUD = 270;    // Set baud rate to 115200
+    *AUX_MU_IIR_REG = 6;
+
     /* Setting GPIO pins */
     // Set GPIO14 and GPIO15 to alternative function 5
-    unsigned int selector = *GPFSEL1;
-    selector &= ((~(7 << 12)) | ~(7 << 15));  // Clear GPIO14 and GPIO15
-    selector |= (2 << 12) | (2 << 15);        // Set alternative function 5
+    selector = *GPFSEL1;
+    selector &= (~(7 << 12) | ~(7 << 15));  // Clear GPIO14 and GPIO15
+    selector |= ((2 << 12) | (2 << 15));    // Set alternative function 5
     *GPFSEL1 = selector;
 
     // Disable pull-up/down for GPIO14 and GPIO15
@@ -23,14 +34,6 @@ void init_uart() {
     delay(150);
     *GPPUDCLK0 = 0;
 
-    /* Initialize UART */
-    *AUXENB = 1;
-    *AUX_MU_CNTL_REG = 0;  // Disable transmitter and receiver
-    *AUX_MU_IER_REG = 0;   // Disable interrupt
-    *AUX_MU_LCR_REG = 3;   // Set the data size to 8 bit
-    *AUX_MU_MCR_REG = 0;   // Don’t need auto flow control.
-    *AUX_MU_BAUD = 270;    // Set baud rate to 115200
-    *AUX_MU_IIR_REG = 6;
     *AUX_MU_CNTL_REG = 3;  // Enable transmitter and receiver
 }
 
@@ -64,7 +67,7 @@ void uart_putc(char ch) {
 
 
 void uart_puts(char *str) {
-    while (*str) {
+    while (*str != '\0') {
         if (*str == '\n') {
             uart_putc('\r');
             uart_putc('\n');
