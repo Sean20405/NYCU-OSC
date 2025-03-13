@@ -6,6 +6,9 @@
 #include "string.h"
 #include "power.h"
 #include "cpio.h"
+#include "alloc.h"
+#include "utils.h"
+#include <stddef.h>
 
 void cmd_mbox();
 void shell();
