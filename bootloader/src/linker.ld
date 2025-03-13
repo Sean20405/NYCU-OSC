@@ -1,6 +1,7 @@
 SECTIONS
 {
   . = 0x60000;
+  __boot_begin = .;
   .text.boot : { KEEP(*(.text.boot)) }
   .text : { *(.text) }
   .rodata : { *(.rodata) }
@@ -11,7 +12,7 @@ SECTIONS
   __bss_begin = .;
   .bss (NOLOAD): { *(.bss) }
   __bss_end = .;
-  _end = .;
+  __boot_end = .;
 
   __stack_top = 0x60000 + 0x10000;  /* 64KB stack */
 }
