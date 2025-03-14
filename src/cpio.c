@@ -5,12 +5,13 @@
 const unsigned long HEADER_SIZE = sizeof(struct cpio_newc_header);
 uint32_t cpio_addr;
 
+char magic[6] = "070701";
+char header_magic[6];
+
 void cpio_list() {
     struct cpio_newc_header *header = (struct cpio_newc_header *)cpio_addr;
 
     while (1) {
-        char magic[6] = "070701";
-        char header_magic[6];
         memcpy(header_magic, header->c_magic, 6);
         if (strcmp(magic, header_magic) == 0) {
             char *filename_addr = (char *)header + HEADER_SIZE;
@@ -43,8 +44,6 @@ void cpio_cat(char *target_file) {
     struct cpio_newc_header *header = (struct cpio_newc_header *)cpio_addr;
 
     while (1) {
-        char magic[6] = "070701";
-        char header_magic[6];
         memcpy(header_magic, header->c_magic, 6);
         if (strcmp(magic, header_magic) == 0) {
             char *filename_addr = (char *)header + HEADER_SIZE;
@@ -76,7 +75,9 @@ void cpio_cat(char *target_file) {
             header = (struct cpio_newc_header *)((char *)header + HEADER_SIZE + filenamesize + filesize);
         }
         else {
-            uart_puts("Invalid cpio header\r\n");
+            uart_puts("Invalid cpio header: ");
+            uart_puts(header_magic);
+            uart_puts("\r\n");
             break;
         }
     }
