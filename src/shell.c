@@ -6,6 +6,7 @@ void cmd_help_msg() {
     uart_puts("mailbox  :print hardware's information\r\n");
     uart_puts("cat      :print the content of a file\r\n");
     uart_puts("ls       :list all files in the archive\r\n");
+    uart_puts("exec     :execute a program\r\n");
     uart_puts("memAlloc :allocate memory\r\n");
     uart_puts("reboot   :reboot the system\r\n");
     return;
@@ -139,6 +140,10 @@ void shell() {
         }
         else if (strcmp(cmd_name, "ls") == 0) {
             cpio_list();
+        }
+        else if (strcmp(cmd_name, "exec") == 0) {
+            char *filename = cmd.args[0];
+            exec(filename);
         }
         else if (strcmp(cmd_name, "memAlloc") == 0) {
             char num_mem[6];

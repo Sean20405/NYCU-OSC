@@ -39,6 +39,11 @@ for usbid in $usbids; {
         make || exit 1
         cd ../
         
+        # Compile simple user program to test exception
+        cd user
+        make || exit 1
+        cd ../
+
         # Copy the bootloader to the USB device
         while [ ! -e /dev/sdd1 ]; do
             echo "Waiting for USB device to be mounted..."

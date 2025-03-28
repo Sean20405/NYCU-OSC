@@ -34,20 +34,12 @@ $(BUILD_DIR)/%.o: $(SRCS_DIR)/%.c
 # Run on QEMU
 .PHONY: run
 run: $(BUILD_DIR)/$(OUTPUT_NAME).img
-	qemu-system-aarch64 -M raspi3b -kernel $^ -display none -serial null -serial stdio
+	qemu-system-aarch64 -M raspi3b -kernel $^ -initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -display none -serial null -serial stdio
 
 # Run on QEMU with GDB
 .PHONY: run-gdb
 run-gdb: $(BUILD_DIR)/$(OUTPUT_NAME).img
-	qemu-system-aarch64 -M raspi3b -kernel $^ -display none -serial null -serial stdio -S -s 
-
-.PHONY: run-rootfs
-run-rootfs: $(BUILD_DIR)/$(OUTPUT_NAME).img
-	qemu-system-aarch64 -M raspi3b -kernel $^ -initrd initramfs.cpio -display none -serial null -serial stdio
-
-.PHONY: run-dtb
-run-dtb: $(BUILD_DIR)/$(OUTPUT_NAME).img
-	qemu-system-aarch64 -M raspi3b -kernel $^ -initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -display none -serial null -serial stdio
+	qemu-system-aarch64 -M raspi3b -kernel $^ -initrd initramfs.cpio -dtb bcm2710-rpi-3-b-plus.dtb -display none -serial null -serial stdio -S -s 
 
 .PHONY: clean
 clean:
