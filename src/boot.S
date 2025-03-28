@@ -2,6 +2,7 @@
 
 .global _start
 _start:  // read cpu id, stop slave cores
+    mov     x20, x0        // x20: dtb_addr. WARNING: only used for debugging
     mrs     x0, mpidr_el1  // read multiprocessor id register
     and     x0, x0, #0xff  // get cpu id
     cbz     x0, master     // if cpu id is 0, branch to master
@@ -10,6 +11,7 @@ _start:  // read cpu id, stop slave cores
 master:
     bl      from_el2_to_el1
     bl      set_exception_vector_table
+    bl      core_timer_enable
 
     // Set the stack pointer
     ldr     x0, =__stack_top
@@ -37,15 +39,28 @@ from_el2_to_el1:
      *     SPSR_ELx, Saved Program Status Registers: D1.6.4 (P1417)
      *         [3:2]: Target exception level.
      *         [0]  : SPSel. Selects the stack pointer for the target Exception level.
-     *         [6:8]: Interrupt mask bits. 1 for disable
+     *         [8:6]: Interrupt mask bits. 1 for disable. A, I, F
      *         [9]  : Debug exception mask bit. 1 for disable
      *     ELR_ELx, Exception Link Register: D1.6.5 (P1420)
     */
     mov     x0, (1 << 31)   // EL1 uses aarch64
     msr     hcr_el2, x0
 
-    mov     x0, 0x3c5       // EL1h (SPSel = 1) with interrupt disabled. 3c5 = ... 0011 1100 0101
+    mov     x0, 0x345       // EL1h (SPSel = 1) with interrupt disabled.
+                            // 3c5 = ... 0011 1100 0101
+                            // 345 = ... 0011 0100 0101 (enable IRQ)
     msr     spsr_el2, x0
 
     msr     elr_el2, lr
     eret                    // Exception Return. Return to EL1
+
+#define CORE0_TIMER_IRQ_CTRL 0x40000040
+core_timer_enable:
+    mov x0, 1
+    msr cntp_ctl_el0, x0 // enable
+    mrs x0, cntfrq_el0
+    msr cntp_tval_el0, x0 // set expired time
+    mov x0, 2
+    ldr x1, =CORE0_TIMER_IRQ_CTRL
+    str w0, [x1] // unmask timer interrupt
+    ret

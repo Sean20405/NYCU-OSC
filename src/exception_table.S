@@ -12,7 +12,7 @@ exception_vector_table:
 
   b exception_handler
   .align 7
-  b exception_handler
+  b core_timer_handler
   .align 7
   b exception_handler
   .align 7
@@ -21,7 +21,7 @@ exception_vector_table:
 
   b exception_handler
   .align 7
-  b exception_handler
+  b core_timer_handler
   .align 7
   b exception_handler
   .align 7
@@ -93,6 +93,14 @@ exception_handler:
     ldp x0, x1, [sp], #16
     msr elr_el1, x0
     msr spsr_el1, x1
+
+    load_all
+    eret
+
+core_timer_handler:
+    save_all
+
+    bl core_timer_entry
 
     load_all
     eret
