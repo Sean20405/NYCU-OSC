@@ -145,6 +145,52 @@ void shell() {
             char *filename = cmd.args[0];
             exec(filename);
         }
+        else if (strcmp(cmd_name, "test") == 0) {
+            uart_puts("Testing async UART...\r\n");
+            uart_enable_rx_irq();
+            int ret;
+            ret = uart_async_puts("Async UART test started...\r\n");
+            if (ret == 0) {
+                uart_disable_irq();
+                uart_puts("Async UART test failed...\r\n");
+                continue;
+            }
+            ret = uart_async_puts("Press 'q' to exit...\r\n");
+            if (ret == 0) {
+                uart_disable_irq();
+                uart_puts("Async UART test failed...\r\n");
+                continue;
+            }
+            while (1) {
+                char ch;
+                ret = uart_async_getc(&ch);
+                if (ret == 0) {
+                    continue;  // No data available
+                }
+                if (ch == 'q') {
+                    uart_disable_irq();
+                    uart_puts("Exiting async UART test...\r\n");
+                    break;
+                }
+                ret = uart_async_putc(ch);
+                if (ret == 0) {
+                    uart_disable_irq();
+                    uart_puts("Async UART test failed...\r\n");
+                    break;
+                }
+                // uart_async_puts("\r\n");
+            }
+            // char ch;
+            // while (1) {
+            //     ch = uart_async_getc();
+            //     if (ch == 'q') {
+            //         uart_disable_irq();
+            //         uart_puts("Exiting async UART test...\r\n");
+            //         break;
+            //     }
+            //     uart_async_putc(ch);
+            // }
+        }
         else if (strcmp(cmd_name, "memAlloc") == 0) {
             char num_mem[6];
             uart_puts("Allocate memory: ");

@@ -12,11 +12,43 @@ void exception_entry() {
         :
     );
 
+    unsigned long ec = (esr_el1 >> 26) & 0x3f;  // Extract the exception class
+
     uart_puts("spsr_el1: ");
     uart_hex(spsr_el1);
     uart_puts(" elr_el1: ");
     uart_hex(elr_el1);
     uart_puts(" esr_el1: ");
     uart_hex(esr_el1);
+    uart_puts(" EC: ");
+    uart_hex(ec);
     uart_puts("\r\n");
+}
+
+void irq_entry() {
+    /**
+     * irq_entry - Interrupt handler entry point
+     *
+     * This function is called when an interrupt occurs. It checks the
+     * pending interrupts and calls the appropriate handler.
+     *
+     * The function handles the core timer interrupt and the UART interrupt.
+     */
+    unsigned int irq_src = *CORE0_IRQ_SOURCE;
+    unsigned int pending_1 = *IRQ_PENDING_1;
+
+    if (irq_src & TIMER_IRQ) {  // Timer interrupt
+        core_timer_handler();
+    }
+    if ((irq_src & GPU_IRQ) && (pending_1 & (1 << 29))) {  // UART interrupt
+        uart_irq_handler();
+    }
+}
+
+void enable_irq() {
+    asm volatile("msr daifclr, #0xf\n");
+}
+
+void disable_irq() {
+    asm volatile("msr daifset, #0xf\n");
 }

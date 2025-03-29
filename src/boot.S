@@ -2,7 +2,7 @@
 
 .global _start
 _start:  // read cpu id, stop slave cores
-    mov     x20, x0        // x20: dtb_addr. WARNING: only used for debugging
+    // mov     x20, x0        // x20: dtb_addr. WARNING: only used for debugging
     mrs     x0, mpidr_el1  // read multiprocessor id register
     and     x0, x0, #0xff  // get cpu id
     cbz     x0, master     // if cpu id is 0, branch to master
@@ -11,7 +11,6 @@ _start:  // read cpu id, stop slave cores
 master:
     bl      from_el2_to_el1
     bl      set_exception_vector_table
-    bl      core_timer_enable
 
     // Set the stack pointer
     ldr     x0, =__stack_top
@@ -55,6 +54,7 @@ from_el2_to_el1:
     eret                    // Exception Return. Return to EL1
 
 #define CORE0_TIMER_IRQ_CTRL 0x40000040
+.global core_timer_enable
 core_timer_enable:
     mov x0, 1
     msr cntp_ctl_el0, x0 // enable

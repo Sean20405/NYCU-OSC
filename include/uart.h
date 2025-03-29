@@ -2,6 +2,7 @@
 #define UART_H
 
 #include "gpio.h"
+#include "exception.h"
 
 // Define the address of the registers
 #define AUXENB          ((volatile unsigned int*)(MMIO_BASE + 0x00215004))
@@ -26,5 +27,22 @@ void uart_puts(char *str);      // Write a string
 void uart_putn(char *str, unsigned int n);  // Write n chars
 void uart_hex(unsigned int d);  // Write a hex number
 void uart_int(int d);           // Write an integer
+
+/* IRQ related */
+void uart_enable_irq();
+void uart_enable_rx_irq();
+void uart_enable_tx_irq();
+void uart_disable_irq();
+void uart_disable_rx_irq();
+void uart_disable_tx_irq();
+void uart_irq_handler();
+void uart_irq_rx_handler();
+void uart_irq_tx_handler();
+
+/* async I/O */
+int uart_async_getc(char *ch);
+char* uart_async_gets(char *buffer);
+int uart_async_putc(char ch);
+int uart_async_puts(char *str);
 
 #endif /* UART_H */

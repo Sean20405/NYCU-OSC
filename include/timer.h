@@ -3,6 +3,7 @@
 
 #include "uart.h"
 
-void core_timer_entry();
+void core_timer_handler();
+void print_time();
 
 #endif /* TIMER_H */

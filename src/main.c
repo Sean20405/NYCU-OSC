@@ -4,6 +4,8 @@
 
 void main() {
     // Get the address of the device tree blob
+    // init_uart();
+
     uint32_t dtb_address;
     asm volatile ("mov %0, x20" : "=r" (dtb_address));
 
@@ -17,5 +19,12 @@ void main() {
         uart_puts("Failed to traverse the device tree blob!\n");
         return;
     }
+
+    enable_irq();
+    core_timer_enable();
+    // uart_enable_irq();
+
+    print_time();
+
     shell();
 }

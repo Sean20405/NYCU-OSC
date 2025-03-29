@@ -1,5 +1,15 @@
 #include "uart.h"
 
+#define BUFFER_SIZE 1024
+
+char rx_buffer[BUFFER_SIZE];   // Ring array
+char tx_buffer[BUFFER_SIZE];   
+unsigned long rx_buffer_head = 0;       // The front of the buffer
+unsigned long rx_buffer_tail = 0;        // The index of the next character to be read
+unsigned long tx_buffer_head = 0;
+unsigned long tx_buffer_tail = 0;
+
+
 void delay(unsigned int cycles) {
     volatile unsigned int i;
     for (i = 0; i < cycles; i++) {
@@ -142,4 +152,154 @@ void uart_int(int d) {
     while (--i >= 0) {
         uart_putc(str[i]);
     }
+}
+
+/* IRQ related */
+void uart_enable_irq() {
+    *AUX_MU_IER_REG |= 0x03;        // Enable RX and TX interrupts
+    *ENABLE_IRQS_1 |= (1 << 29);    // Enable the interrupt line for the UART
+}
+
+void uart_enable_rx_irq() {
+    *AUX_MU_IER_REG |= 0x01;        // Only enable RX interrupt
+    *ENABLE_IRQS_1 |= (1 << 29);
+}
+
+void uart_enable_tx_irq() {
+    *AUX_MU_IER_REG |= 0x02;        // Only enable TX interrupt
+    *ENABLE_IRQS_1 |= (1 << 29);
+}
+
+
+void uart_disable_irq() {
+    *AUX_MU_IER_REG &= ~0x03;       // Disable RX and TX interrupts
+    *ENABLE_IRQS_1 &= ~(1 << 29);
+}
+
+void uart_disable_rx_irq() {
+    *AUX_MU_IER_REG &= ~0x01;       // Only disable RX interrupt
+}
+
+void uart_disable_tx_irq() {
+    *AUX_MU_IER_REG &= ~0x02;       // Only disable TX interrupt
+}
+
+
+void uart_irq_handler() {
+    if (*AUX_MU_IIR_REG & 0x04) {  // receive interrupt
+        uart_irq_rx_handler();
+    }
+    if (*AUX_MU_IIR_REG & 0x02) {  // transmit interrupt
+        uart_irq_tx_handler();
+    }
+}
+
+/**
+ * uart_irq_rx_handler - UART RX interrupt handler
+ * 
+ * This function will be triggered by the RX interrupt of the UART
+ * when the RX FIFO is not empty. It will read one character from
+ * the RX FIFO and store it in the RX buffer (`rx_buffer`).
+ */
+void uart_irq_rx_handler() {
+
+    // Check if the buffer is full
+    if ((rx_buffer_head + 1) % BUFFER_SIZE == rx_buffer_tail) {
+        uart_disable_rx_irq();
+    }
+    else {
+        rx_buffer[rx_buffer_head] = (char)(*AUX_MU_IO_REG);
+        rx_buffer_head = (rx_buffer_head + 1) % BUFFER_SIZE;
+    }
+}
+
+
+/**
+ * uart_irq_tx_handler - UART TX interrupt handler
+ * 
+ * This function will be triggered by the TX interrupt of the UART
+ * when the TX FIFO is empty. It will send one character from the
+ * TX buffer (`tx_buffer`) to the TX FIFO.
+ */
+void uart_irq_tx_handler() {
+    // Check if the buffer is empty
+    if (tx_buffer_head == tx_buffer_tail) {
+        uart_disable_tx_irq();
+    }
+    else {
+        *AUX_MU_IO_REG = tx_buffer[tx_buffer_tail];
+        tx_buffer_tail = (tx_buffer_tail + 1) % BUFFER_SIZE;
+    }
+}
+
+
+/**
+ * uart_async_getc - Asynchronous UART get character
+ * 
+ * @return: 1 if a character was received, 0 if no character was available
+ */
+int uart_async_getc(char *ch) {
+    // Check if the buffer is empty
+    if (rx_buffer_head == rx_buffer_tail) {
+        *AUX_MU_IER_REG |= 0x01;  // Enable RX interrupt
+        return 0;
+    }
+
+    *ch = rx_buffer[rx_buffer_tail];
+    rx_buffer_tail = (rx_buffer_tail + 1) % BUFFER_SIZE;
+    return 1;
+}
+
+
+/**
+ * uart_async_putc - Asynchronous UART put character
+ * 
+ * @return: 1 if a character was added to the buffer, 0 if the buffer is full
+ */
+int uart_async_putc(char ch) {
+    // Check if the buffer is full
+    if ((tx_buffer_head + 1) % BUFFER_SIZE == tx_buffer_tail) {
+        uart_enable_tx_irq();  // Buffer is full, enable TX interrupt
+        return 0;
+    }
+
+    // disable_irq();
+    tx_buffer[tx_buffer_head] = ch;
+    tx_buffer_head = (tx_buffer_head + 1) % BUFFER_SIZE;
+    // enable_irq();
+    uart_enable_tx_irq();  // Have data to send, enable TX interrupt
+    return 1;
+}
+
+
+char* uart_async_gets(char *buffer) {
+    char *ptr = buffer;
+    char *ch;
+    while (uart_async_getc(ch) && *ch != '\r') {
+        // uart_putc(ch);
+        *ptr = *ch;
+        ptr++;
+    }
+    // if (ch == '\r') uart_puts("\r\n");
+    *ptr = '\0';
+    return buffer;
+}
+
+
+int uart_async_puts(char *str) {
+    while (*str != '\0') {
+        int ret;
+        if (*str == '\n') {
+            ret = uart_async_putc('\r');
+            if (!ret) return 0;
+            ret = uart_async_putc('\n');
+            if (!ret) return 0;
+        }
+        else {
+            ret = uart_async_putc(*str);
+            if (!ret) return 0;
+        }
+        str++;
+    }
+    return 1;  // Data added to buffer
 }

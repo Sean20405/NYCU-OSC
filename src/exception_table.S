@@ -1,8 +1,8 @@
-.align 11 // vector table should be aligned to 0x800
+.align 11                       // vector table should be aligned to 0x800
 .global exception_vector_table
 exception_vector_table:
-  b exception_handler // branch to a handler function.
-  .align 7 // entry size is 0x80, .align will pad 0
+  b exception_handler           // branch to a handler function.
+  .align 7                      // entry size is 0x80, .align will pad 0
   b exception_handler
   .align 7
   b exception_handler
@@ -12,7 +12,7 @@ exception_vector_table:
 
   b exception_handler
   .align 7
-  b core_timer_handler
+  b irq_handler
   .align 7
   b exception_handler
   .align 7
@@ -21,7 +21,7 @@ exception_vector_table:
 
   b exception_handler
   .align 7
-  b core_timer_handler
+  b irq_handler
   .align 7
   b exception_handler
   .align 7
@@ -83,24 +83,24 @@ exception_handler:
     save_all
 
     // Save the ELR_EL1 and SPSR_EL1 registers to the stack
-    mrs x0, elr_el1
-    mrs x1, spsr_el1
-    stp x0, x1, [sp, #-16]!
+    //mrs x0, elr_el1
+    //mrs x1, spsr_el1
+    //stp x0, x1, [sp, #-16]!
 
     bl exception_entry
 
     // Restore the ELR_EL1 and SPSR_EL1 registers from the stack
-    ldp x0, x1, [sp], #16
-    msr elr_el1, x0
-    msr spsr_el1, x1
+    //ldp x0, x1, [sp], #16
+    //msr elr_el1, x0
+    //msr spsr_el1, x1
 
     load_all
     eret
 
-core_timer_handler:
+irq_handler:
     save_all
 
-    bl core_timer_entry
+    bl irq_entry
 
     load_all
     eret
