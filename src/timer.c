@@ -46,7 +46,7 @@ void core_timer_handler() {
     int curr_tick = get_tick();
 
     timer_disable_irq();
-    // disable_irq_el1();
+    enable_irq_el1();  // Can enable IRQ in advance for other interrupts
 
     // Clear all expired timers
     int removed = 0;
