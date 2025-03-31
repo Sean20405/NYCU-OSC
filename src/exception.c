@@ -37,12 +37,15 @@ void irq_entry() {
     unsigned int irq_src = *CORE0_IRQ_SOURCE;
     unsigned int pending_1 = *IRQ_PENDING_1;
 
+    disable_irq_el1();
     if (irq_src & TIMER_IRQ) {  // Timer interrupt
-        core_timer_handler();
+        add_task(core_timer_handler, 0);
+        execute_task();
     }
-    if ((irq_src & GPU_IRQ) && (pending_1 & (1 << 29))) {  // UART interrupt
+    else if ((irq_src & GPU_IRQ) && (pending_1 & (1 << 29))) {  // UART interrupt
         uart_irq_handler();
     }
+    enable_irq_el1();
 }
 
 void enable_irq_el1() {

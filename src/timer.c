@@ -8,7 +8,11 @@ struct Timer {
     int expiration;  // Unit: tick
 };
 
-struct Timer* head = NULL;
+#define MAX_TIMERS 10
+static struct Timer timer_pool[MAX_TIMERS];
+static int timer_pool_used = 0;
+
+static struct Timer* timer_head = NULL;
 
 void timer_enable_irq() {
     asm volatile("msr cntp_ctl_el0, %0"::"r"(1));
@@ -23,8 +27,8 @@ void timer_disable_irq() {
 void set_timer_irq(unsigned long long tick) {
     unsigned long long expiration = tick;
     asm volatile("msr cntp_tval_el0, %0"::"r"(expiration));
-    enable_irq_el1();
-    timer_enable_irq();
+    // enable_irq_el1();
+    // timer_enable_irq();
 }
 
 void print_msg(char* msg) {
@@ -42,27 +46,30 @@ void core_timer_handler() {
     int curr_tick = get_tick();
 
     timer_disable_irq();
-    disable_irq_el1();
+    // disable_irq_el1();
 
     // Clear all expired timers
     int removed = 0;
 
-    while (head != NULL && head->expiration <= curr_tick) {
-        struct Timer* curr = head;
-        curr->callback(curr->msg);
-        head = curr->next;
+    while (timer_head != NULL && timer_head->expiration <= curr_tick) {
+        struct Timer* curr = timer_head;
+        timer_head = curr->next;
         if (curr->next) curr->next->prev = NULL;
         removed = 1;
+
+        curr->callback(curr->msg);
         // free(curr);
+        timer_pool_used--;
     }
 
     // Reset the timer
-    if (removed && head) {
-        set_timer_irq(head->expiration - curr_tick);
+    if (removed && timer_head) {
+        set_timer_irq(timer_head->expiration - curr_tick);
+        timer_enable_irq();
     }
-    else {
-        enable_irq_el1();
-    }
+    // else {
+    //     enable_irq_el1();
+    // }
 }
 
 void print_time() {
@@ -106,43 +113,54 @@ void set_timeout(char* msg, int sec) {
     unsigned long long cntfrq_el0 = 0;
     asm volatile("mrs %0, cntfrq_el0" : "=r"(cntfrq_el0));
 
-    char *timer_msg;
+    char *timer_msg = (char *)simple_alloc(strlen(msg) + 1);
+    if (timer_msg == NULL) {
+        uart_puts("Failed to allocate memory for timer message\r\n");
+        return;
+    }
     memcpy(timer_msg, msg, strlen(msg) + 1);
 
     add_timer(print_msg, timer_msg, (unsigned long long)sec * cntfrq_el0);
 }
 
 void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
-    struct Timer* new_timer = (struct Timer*)simple_alloc(sizeof(struct Timer));
+    if (timer_pool_used >= MAX_TIMERS) {
+        uart_puts("Timer pool is full\r\n");
+        return;
+    }
+    
+    struct Timer* new_timer = &timer_pool[timer_pool_used++];
+
     unsigned long long curr_tick = get_tick();
     if (new_timer == NULL) {
         uart_puts("Failed to allocate memory for timer\r\n");
         return;
     }
+    
     new_timer->msg = msg;
     new_timer->expiration = curr_tick + tick;
     new_timer->callback = callback;
+    
 
     int reset = 0;
 
     // Add the new timer to the list
     timer_disable_irq();
-    disable_irq_el1();
-    if (head == NULL) {  // List is empty
+    if (timer_head == NULL) {  // List is empty
         new_timer->prev = NULL;
         new_timer->next = NULL;
-        head = new_timer;
+        timer_head = new_timer;
         reset = 1;
     }
-    else if (head->expiration >= new_timer->expiration) {  // Insert at head
-        new_timer->next = head;
-        head->prev = new_timer;
+    else if (timer_head->expiration >= new_timer->expiration) {  // Insert at head
+        new_timer->next = timer_head;
+        timer_head->prev = new_timer;
         new_timer->prev = NULL;
-        head = new_timer;
+        timer_head = new_timer;
         reset = 1;
     }
     else {
-        struct Timer* curr = head;
+        struct Timer* curr = timer_head;
         while (curr->next != NULL && curr->next->expiration < new_timer->expiration) {
             curr = curr->next;
         }
@@ -156,8 +174,7 @@ void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
 
     // Reset the timer
     if (reset) {
-        set_timer_irq(head->expiration - curr_tick);
+        set_timer_irq(timer_head->expiration - curr_tick);
     }
-    enable_irq_el1();
     timer_enable_irq();
 }

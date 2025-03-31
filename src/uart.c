@@ -187,10 +187,12 @@ void uart_disable_tx_irq() {
 
 void uart_irq_handler() {
     if (*AUX_MU_IIR_REG & 0x04) {  // receive interrupt
-        uart_irq_rx_handler();
+        add_task(uart_irq_rx_handler, 0);
+        execute_task();
     }
     if (*AUX_MU_IIR_REG & 0x02) {  // transmit interrupt
-        uart_irq_tx_handler();
+        add_task(uart_irq_tx_handler, 0);
+        execute_task();
     }
 }
 

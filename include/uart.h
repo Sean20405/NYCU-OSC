@@ -3,6 +3,7 @@
 
 #include "gpio.h"
 #include "exception.h"
+#include "tasks.h"
 
 // Define the address of the registers
 #define AUXENB          ((volatile unsigned int*)(MMIO_BASE + 0x00215004))

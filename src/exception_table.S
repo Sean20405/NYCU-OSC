@@ -39,7 +39,7 @@ exception_vector_table:
 
 // save general registers to stack
 .macro save_all
-    sub sp, sp, 32 * 8
+    sub sp, sp, 32 * 9
     stp x0, x1, [sp ,16 * 0]
     stp x2, x3, [sp ,16 * 1]
     stp x4, x5, [sp ,16 * 2]
@@ -56,10 +56,20 @@ exception_vector_table:
     stp x26, x27, [sp ,16 * 13]
     stp x28, x29, [sp ,16 * 14]
     str x30, [sp, 16 * 15]
+
+    // Save reg for nested exception
+    mrs x0, spsr_el1
+    mrs x1, elr_el1
+    stp x0, x1, [sp, 16*16]
 .endm
 
 // load general registers from stack
 .macro load_all
+    // Restore reg for nested exception
+    ldp x0, x1, [sp, 16*16]
+    msr spsr_el1, x0
+    msr elr_el1, x1
+
     ldp x0, x1, [sp ,16 * 0]
     ldp x2, x3, [sp ,16 * 1]
     ldp x4, x5, [sp ,16 * 2]
@@ -76,32 +86,18 @@ exception_vector_table:
     ldp x26, x27, [sp ,16 * 13]
     ldp x28, x29, [sp ,16 * 14]
     ldr x30, [sp, 16 * 15]
-    add sp, sp, 32 * 8
+    add sp, sp, 32 * 9
 .endm
 
 exception_handler:
     save_all
-
-    // Save the ELR_EL1 and SPSR_EL1 registers to the stack
-    //mrs x0, elr_el1
-    //mrs x1, spsr_el1
-    //stp x0, x1, [sp, #-16]!
-
     bl exception_entry
-
-    // Restore the ELR_EL1 and SPSR_EL1 registers from the stack
-    //ldp x0, x1, [sp], #16
-    //msr elr_el1, x0
-    //msr spsr_el1, x1
-
     load_all
     eret
 
 irq_handler:
     save_all
-
     bl irq_entry
-
     load_all
     eret
 
