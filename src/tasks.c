@@ -8,10 +8,12 @@ struct Task {
 };
 
 #define MAX_TASKS 10
+#define MAX_PRIORITY 100
 static struct Task task_pool[MAX_TASKS];
 static int task_pool_used = 0;
 
 static struct Task* task_head = NULL;
+static int curr_priority = MAX_PRIORITY + 1;
 
 void add_task(task_callback callback, int priority) {
     // struct Task* new_task = (struct Task*)simple_alloc(sizeof(struct Task));
@@ -62,18 +64,32 @@ void add_task(task_callback callback, int priority) {
 
 
 void execute_task() {
-    // disable_irq_el1();
-    while (task_head) {
-        
+    struct Task* curr_task = task_head;
+    task_head = task_head->next;
+    if (task_head) task_head->prev = NULL;
+    curr_task->callback();
 
-        struct Task* curr_task = task_head;
-        task_head = task_head->next;
-        if (task_head) task_head->prev = NULL;
-        curr_task->callback();
-
-        // Free the completed task
-        task_pool_used--;
-        
-    }
-    // enable_irq_el1();
+    // Free the completed task
+    task_pool_used--;
 }
+
+
+// void execute_task_preempt() {
+//     while (task_head) {
+//         struct Task* curr_task = task_head;
+
+//         // Check if the current task has a higher priority than the last executed task
+//         if (curr_task->priority < curr_priority) {
+//             task_head = task_head->next;
+//             if (task_head) task_head->prev = NULL;
+//             curr_task->callback();
+
+//             // Free the completed task
+//             task_pool_used--;
+//         }
+//         else {
+//             curr_priority = curr_task->priority;
+//             break;
+//         }
+//     }
+// }
