@@ -5,8 +5,6 @@
 
 void main() {
     // Get the address of the device tree blob
-    // init_uart();
-
     uint32_t dtb_address;
     asm volatile ("mov %0, x20" : "=r" (dtb_address));
 
@@ -22,8 +20,6 @@ void main() {
     }
 
     enable_irq_el1();
-    // timer_enable_irq();
-    // uart_enable_irq();
 
     add_timer(print_uptime, NULL, 2 * get_freq());
 

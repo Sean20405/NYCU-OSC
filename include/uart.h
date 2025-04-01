@@ -45,5 +45,6 @@ int uart_async_getc(char *ch);
 char* uart_async_gets(char *buffer);
 int uart_async_putc(char ch);
 int uart_async_puts(char *str);
+void test_uart_async();
 
 #endif /* UART_H */

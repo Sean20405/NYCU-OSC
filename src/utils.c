@@ -1,15 +1,15 @@
 #include "utils.h"
 
+/**
+ * hex_to_uint - Converts a hexadecimal string to an unsigned integer
+ * 
+ * @param str Pointer to a character array containing the hexadecimal string
+ * @param len Number of characters to process from the string
+ * @return The unsigned integer value of the hexadecimal string
+ *
+ * Example: "1A3" would be converted to decimal value 419
+ */
 unsigned int hex_to_uint(char *hex_str, unsigned int len) {
-    /**
-     * hex_to_uint - Converts a hexadecimal string to an unsigned integer
-     * @str: Pointer to a character array containing the hexadecimal string
-     * @len: Number of characters to process from the string
-     *
-     * Example: "1A3" would be converted to decimal value 419
-     *
-     * Return: The unsigned integer value of the hexadecimal string
-     */
     unsigned int result = 0;
     while (len--) {
         result = result << 4;
@@ -27,15 +27,15 @@ unsigned int hex_to_uint(char *hex_str, unsigned int len) {
     return result;
 }
 
+/**
+ * atoi - Converts a string to an integer
+ * 
+ * @param str: Pointer to a character array containing the string
+ * @return The integer value of the string
+ * 
+ * Example: "123" would be converted to decimal value 123
+ */
 int atoi(char *str) {
-    /**
-     * atoi - Converts a string to an integer
-     * @str: Pointer to a character array containing the string
-     *
-     * Example: "123" would be converted to decimal value 123
-     *
-     * Return: The integer value of the string
-     */
     int result = 0;
     while (*str) {
         result = result * 10 + *str - '0';
@@ -44,13 +44,13 @@ int atoi(char *str) {
     return result;
 }
 
+/**
+ * be2le_u32 - Converts a big-endian 32-bit unsigned integer to little-endian
+ * 
+ * @param be The big-endian 32-bit unsigned integer
+ * @return The little-endian 32-bit unsigned integer
+ */
 uint32_t be2le_u32(uint32_t be) {
-    /**
-     * be2le_u32 - Converts a big-endian 32-bit unsigned integer to little-endian
-     * @be: The big-endian 32-bit unsigned integer
-     *
-     * Return: The little-endian 32-bit unsigned integer
-     */
     return ((be & 0xFF) << 24) | ((be & 0xFF00) << 8) | ((be & 0xFF0000) >> 8) | ((be & 0xFF000000) >> 24);
 }
 

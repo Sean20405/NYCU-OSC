@@ -100,6 +100,7 @@ char* cpio_get_exec(char *target_file/*, char *exec_addr*/) {
             }
 
             if (strcmp(filename, target_file) == 0) {
+                // Cpoy to the target address (No need)
                 // unsigned int filesize = hex_to_uint(header->c_filesize, 8);
                 // char *file_addr = (char *)header + align(HEADER_SIZE + filenamesize, 4);
                 // memcpy(exec_addr, file_addr, filesize);

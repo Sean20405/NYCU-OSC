@@ -265,10 +265,16 @@ int uart_async_putc(char ch) {
         return 0;
     }
 
-    // disable_irq();
-    tx_buffer[tx_buffer_head] = ch;
-    tx_buffer_head = (tx_buffer_head + 1) % BUFFER_SIZE;
-    // enable_irq();
+    if (ch == '\r') {
+        tx_buffer[tx_buffer_head] = '\r';
+        tx_buffer_head = (tx_buffer_head + 1) % BUFFER_SIZE;
+        tx_buffer[tx_buffer_head] = '\n';
+        tx_buffer_head = (tx_buffer_head + 1) % BUFFER_SIZE;
+    }
+    else{
+        tx_buffer[tx_buffer_head] = ch;
+        tx_buffer_head = (tx_buffer_head + 1) % BUFFER_SIZE;
+    }
     uart_enable_tx_irq();  // Have data to send, enable TX interrupt
     return 1;
 }
@@ -304,4 +310,42 @@ int uart_async_puts(char *str) {
         str++;
     }
     return 1;  // Data added to buffer
+}
+
+void test_uart_async() {
+    uart_puts("Testing async UART...\r\n=========================\r\n");
+
+    uart_enable_rx_irq();
+    int ret;
+    ret = uart_async_puts("Async UART test started...\r");
+    if (ret == 0) {
+        uart_disable_irq();
+        uart_puts("Async UART test failed...\r\n");
+        return;
+    }
+    ret = uart_async_puts("Press 'q' to exit...\r");
+    if (ret == 0) {
+        uart_disable_irq();
+        uart_puts("Async UART test failed...\r\n");
+        return;
+    }
+    while (1) {
+        char ch;
+        ret = uart_async_getc(&ch);
+        if (ret == 0) {
+            continue;  // No data available
+        }
+        if (ch == 'q') {
+            uart_disable_irq();
+            uart_puts("Exiting async UART test...\r\n=========================\r\n");
+            break;
+        }
+        ret = uart_async_putc(ch);
+        if (ret == 0) {
+            uart_disable_irq();
+            uart_puts("Async UART test failed...\r\n");
+            break;
+        }
+        // uart_async_puts("\r\n");
+    }
 }

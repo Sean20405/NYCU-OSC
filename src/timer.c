@@ -25,8 +25,6 @@ void timer_disable_irq() {
 void set_timer_irq(unsigned long long tick) {
     unsigned long long expiration = tick;
     asm volatile("msr cntp_tval_el0, %0"::"r"(expiration));
-    // enable_irq_el1();
-    // timer_enable_irq();
 }
 
 void print_msg(char* msg) {
@@ -75,27 +73,7 @@ void core_timer_handler() {
         set_timer_irq(timer_head->expiration - curr_tick);
         timer_enable_irq();
     }
-    // else {
-    //     enable_irq_el1();
-    // }
 }
-
-void print_time() {
-    unsigned long long cntpct_el0 = 0;
-    unsigned long long cntfrq_el0 = 0;
-    asm volatile("mrs %0, cntpct_el0" : "=r"(cntpct_el0));
-    asm volatile("mrs %0, cntfrq_el0" : "=r"(cntfrq_el0));
-    unsigned long long elapsed = cntpct_el0 / cntfrq_el0;
-
-    uart_puts("cntpct_el0: ");
-    uart_hex(cntpct_el0);
-    uart_puts(" cntfrq_el0: ");
-    uart_hex(cntfrq_el0);
-    uart_puts(" elapsed: ");
-    uart_hex(elapsed);
-    uart_puts("\r\n");
-}
-
 
 unsigned long long get_tick() {
     unsigned long long cntpct_el0 = 0;

@@ -25,15 +25,16 @@ void exception_entry() {
     uart_puts("\r\n");
 }
 
+
+/**
+ * irq_entry - Interrupt handler entry point
+ *
+ * This function is called when an interrupt occurs. It checks the
+ * pending interrupts and calls the appropriate handler.
+ *
+ * The function handles the core timer interrupt and the UART interrupt.
+ */
 void irq_entry() {
-    /**
-     * irq_entry - Interrupt handler entry point
-     *
-     * This function is called when an interrupt occurs. It checks the
-     * pending interrupts and calls the appropriate handler.
-     *
-     * The function handles the core timer interrupt and the UART interrupt.
-     */
     unsigned int irq_src = *CORE0_IRQ_SOURCE;
     unsigned int pending_1 = *IRQ_PENDING_1;
 

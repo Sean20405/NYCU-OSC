@@ -29,18 +29,19 @@ int fdt_init(const void* fdt_base) {
     return 0;
 }
 
+/**
+ * fdt_parse_node - Parse a node in the device tree continuously
+ * 
+ * This function parses a node in the device tree and calls the callback function
+ * for each node to do corresponding operations.
+ * 
+ * @param ptr: Pointer to the pointer to the current position in the device tree
+ * @param callback: Callback function to be called for each node
+ * @return 0 for success, others for error
+ * 
+ * Note: It does not support recursive parsing. Only parse each node individually.
+ */
 int fdt_parse_node(const void** ptr, fdt_callback callback) {
-    /**
-     * fdt_parse_node - Parse a node in the device tree continuously
-     * This function parses a node in the device tree and calls the callback function
-     * for each node to do corresponding operations.
-     * @ptr: Pointer to the pointer to the current position in the device tree
-     * @callback: Callback function to be called for each node
-     *
-     * Return: 0 for success, others for error
-     * 
-     * Note: It does not support recursive parsing. Only parse each node individually.
-     */
     const char* p = *ptr;
 
     while (1) {

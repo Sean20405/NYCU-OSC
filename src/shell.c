@@ -56,17 +56,17 @@ void cmd_mbox() {
     }
 }
 
+/**
+ * Parse the command string and store the command name and arguments in the struct Command
+ * 
+ * @param str: the command string
+ * @param cmd: the struct Command to store the command name and arguments
+ * @return
+ *     0: success
+ *     1: str is NULL
+ *     2: too many arguments
+ */
 int parse_cmd(char *str, struct Command *cmd) {
-    /**
-     * Parse the command string and store the command name and arguments in the struct Command
-     * 
-     * @param str: the command string
-     * @param cmd: the struct Command to store the command name and arguments
-     * @return
-     *     0: success
-     *     1: str is NULL
-     *     2: too many arguments
-     */
     if (str == NULL) return 1;
 
     cmd->name = strtok(str, ' ');
@@ -148,40 +148,7 @@ void shell() {
             exec(filename);
         }
         else if (strcmp(cmd_name, "test_async") == 0) {
-            uart_puts("Testing async UART...\r\n");
-            uart_enable_rx_irq();
-            int ret;
-            ret = uart_async_puts("Async UART test started...\r\n");
-            if (ret == 0) {
-                uart_disable_irq();
-                uart_puts("Async UART test failed...\r\n");
-                continue;
-            }
-            ret = uart_async_puts("Press 'q' to exit...\r\n");
-            if (ret == 0) {
-                uart_disable_irq();
-                uart_puts("Async UART test failed...\r\n");
-                continue;
-            }
-            while (1) {
-                char ch;
-                ret = uart_async_getc(&ch);
-                if (ret == 0) {
-                    continue;  // No data available
-                }
-                if (ch == 'q') {
-                    uart_disable_irq();
-                    uart_puts("Exiting async UART test...\r\n");
-                    break;
-                }
-                ret = uart_async_putc(ch);
-                if (ret == 0) {
-                    uart_disable_irq();
-                    uart_puts("Async UART test failed...\r\n");
-                    break;
-                }
-                // uart_async_puts("\r\n");
-            }
+            test_uart_async();
         }
         else if (strcmp(cmd_name, "setTimeout") == 0) {
             if (cmd.argc != 2) {
