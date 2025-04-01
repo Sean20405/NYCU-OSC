@@ -7,22 +7,13 @@ struct Task {
     int priority;  // Lower number = higher priority
 };
 
-#define MAX_TASKS 10
 #define MAX_PRIORITY 100
-static struct Task task_pool[MAX_TASKS];
-static int task_pool_used = 0;
 
 static struct Task* task_head = NULL;
 static int curr_priority = MAX_PRIORITY + 1;
 
 void add_task(task_callback callback, int priority) {
-    // struct Task* new_task = (struct Task*)simple_alloc(sizeof(struct Task));
-    if (task_pool_used >= MAX_TASKS) {
-        uart_puts("Task pool is full\r\n");
-        return;
-    }
-    
-    struct Task* new_task = &task_pool[task_pool_used++];
+    struct Task* new_task = (struct Task*)simple_alloc(sizeof(struct Task));
 
     if (new_task == NULL) {
         uart_puts("Failed to allocate memory for task\r\n");
@@ -70,7 +61,6 @@ void execute_task() {
     curr_task->callback();
 
     // Free the completed task
-    task_pool_used--;
 }
 
 

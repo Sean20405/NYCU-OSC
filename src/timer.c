@@ -8,10 +8,6 @@ struct Timer {
     int expiration;  // Unit: tick
 };
 
-#define MAX_TIMERS 10
-static struct Timer timer_pool[MAX_TIMERS];
-static int timer_pool_used = 0;
-
 static struct Timer* timer_head = NULL;
 
 void timer_enable_irq() {
