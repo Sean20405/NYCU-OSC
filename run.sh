@@ -44,12 +44,18 @@ for usbid in $usbids; {
         make || exit 1
         cd ../
 
+        # Pack the rootfs
+        echo "Packing rootfs..."
+        cd rootfs
+        find . | cpio -o -H newc > ../initramfs.cpio
+        cd ../
+
         # Copy the bootloader to the USB device
-        while [ ! -e /dev/sdd1 ]; do
+        while [ ! -e /dev/sdf1 ]; do
             echo "Waiting for USB device to be mounted..."
             sleep 1
         done
-        sudo mount /dev/sdd1 /mnt/usb
+        sudo mount /dev/sdf1 /mnt/usb
         sudo cp bootloader/build/bootloader.img config.txt initramfs.cpio bcm2710-rpi-3-b-plus.dtb /mnt/usb
 
         # Check the file is newest
@@ -61,7 +67,7 @@ for usbid in $usbids; {
             gsub(timestamp, bold_green timestamp reset)
             print
         }'
-        sudo umount /dev/sdd1
+        sudo umount /dev/sdf1
         echo "Copied kernel image to USB device"
         
     else
