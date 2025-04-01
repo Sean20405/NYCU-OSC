@@ -15,6 +15,7 @@ void timer_enable_irq();
 void timer_disable_irq();
 void set_timer_irq(unsigned long long tick);
 void print_msg(char* msg);
+void print_uptime(char* _);
 void core_timer_handler();
 void print_time();
 unsigned long long get_tick();

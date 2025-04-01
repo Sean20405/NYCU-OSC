@@ -1,6 +1,7 @@
 #include "uart.h"
 #include "shell.h"
 #include "devicetree.h"
+#include "timer.h"
 
 void main() {
     // Get the address of the device tree blob
@@ -24,7 +25,7 @@ void main() {
     // timer_enable_irq();
     // uart_enable_irq();
 
-    print_time();
+    add_timer(print_uptime, NULL, 2 * get_freq());
 
     shell();
 }

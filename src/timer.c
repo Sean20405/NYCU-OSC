@@ -42,6 +42,17 @@ void print_msg(char* msg) {
     uart_puts(" sec.\r\n");
 }
 
+void print_uptime(char* _) {
+    unsigned long long curr_tick = get_tick();
+    unsigned long long freq = get_freq();
+
+    uart_puts("Uptime: ");
+    uart_hex(curr_tick / freq);
+    uart_puts(" sec.\r\n");
+
+    add_timer(print_uptime, NULL, 2 * freq);
+}
+
 void core_timer_handler() {
     int curr_tick = get_tick();
 
@@ -59,7 +70,6 @@ void core_timer_handler() {
 
         curr->callback(curr->msg);
         // free(curr);
-        timer_pool_used--;
     }
 
     // Reset the timer
@@ -113,31 +123,18 @@ void set_timeout(char* msg, int sec) {
     unsigned long long cntfrq_el0 = 0;
     asm volatile("mrs %0, cntfrq_el0" : "=r"(cntfrq_el0));
 
-    char *timer_msg = (char *)simple_alloc(strlen(msg) + 1);
-    if (timer_msg == NULL) {
-        uart_puts("Failed to allocate memory for timer message\r\n");
-        return;
-    }
-    memcpy(timer_msg, msg, strlen(msg) + 1);
-
-    add_timer(print_msg, timer_msg, (unsigned long long)sec * cntfrq_el0);
+    add_timer(print_msg, msg, (unsigned long long)sec * cntfrq_el0);
 }
 
 void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
-    if (timer_pool_used >= MAX_TIMERS) {
-        uart_puts("Timer pool is full\r\n");
-        return;
-    }
-    
-    struct Timer* new_timer = &timer_pool[timer_pool_used++];
-
-    unsigned long long curr_tick = get_tick();
+    struct Timer* new_timer = (struct Timer*)simple_alloc((sizeof(struct Timer) + 7) & ~7);
     if (new_timer == NULL) {
         uart_puts("Failed to allocate memory for timer\r\n");
         return;
     }
-    
-    new_timer->msg = msg;
+
+    unsigned long long curr_tick = get_tick();
+    memcpy(new_timer->msg, msg, strlen(msg) + 1);
     new_timer->expiration = curr_tick + tick;
     new_timer->callback = callback;
     
