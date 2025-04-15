@@ -8,7 +8,7 @@
 #define MAX_ORDER       14
 #define PAGE_SIZE       4096
 // #define MEMORY_SIZE     0x3C000000  // Unit: byte
-#define MEMORY_SIZE     0x10000000  // Unit: byte, TODO: for testing
+#define MEMORY_SIZE     0x3C000000  // Unit: byte, TODO: for testing
 #define PAGE_NUM        (MEMORY_SIZE / PAGE_SIZE)
 #define MAX_BLOCK_SIZE  (1 << (MAX_ORDER - 1))  // Max number of pages in a block
 
@@ -45,5 +45,6 @@ void add_to_free_list(struct PageInfo *entry, int order);
 void mm_init();
 void* _alloc(unsigned int size);
 void _free(void *ptr);
+void reserve(void *start, void *end);
 
 #endif

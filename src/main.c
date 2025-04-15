@@ -4,6 +4,11 @@
 #include "timer.h"
 #include "mm.h"
 
+extern char *__stack_top;
+extern uint32_t cpio_addr;
+extern uint32_t cpio_end;
+extern uint32_t fdt_total_size;
+
 void main() {
     // Get the address of the device tree blob
     uint32_t dtb_address;
@@ -21,6 +26,11 @@ void main() {
     }
 
     mm_init();
+    reserve(0x0000, 0x1000);                                    // Spin tables for multicore boot
+    reserve(0x80000, (void*)&__stack_top);                      // Kernel image & startup allocator
+    reserve((void*)cpio_addr, (void*)cpio_end);                 // Initramfs
+    reserve((void*)dtb_address, (void*)dtb_address + be2le_u32(fdt_total_size));   // Devicetree 
+
     kmem_cache_init();
 
     enable_irq_el1();

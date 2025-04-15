@@ -27,6 +27,15 @@ int get_buddy(int idx, int order) {
     return idx ^ (1 << order);
 }
 
+int get_lsb(int x) {
+    int lsb = 0;
+    while (x > 1) {
+        x >>= 1;
+        lsb++;
+    }
+    return lsb;
+}
+
 void print_add_msg(int idx, int order) {
     uart_puts("[+] Add page ");
     uart_puts(itoa(idx));
@@ -79,15 +88,19 @@ void print_free_list() {
     uart_puts("========== Free List ==========\n");
     for (int i = 0; i < MAX_ORDER; i++) {
         struct PageInfo *entry = free_list[i];
-        uart_puts("Free list for order ");
+        int cnt = 0;
+        uart_puts("Order ");
         uart_puts(itoa(i));
         uart_puts(": ");
         while (entry != NULL) {
+            cnt++;
             uart_puts(itoa(entry->idx));
             uart_puts(" -> ");
             entry = entry->next;
         }
-        uart_puts("NULL\n");
+        uart_puts("NULL\t[");
+        uart_puts(itoa(cnt));
+        uart_puts("]\r\n");
     }
     uart_puts("===============================\r\n\r\n");
 }
@@ -137,16 +150,10 @@ void mm_init() {
     }
 
     // Allocate the frame array
-    memory_start = 0x10000000;  // TODO: For testing
+    memory_start = 0x00000000;  // TODO: For testing
     memset(page_list, 0, sizeof(page_list));
 
     // Initialize the free list and page list
-    uart_puts("PAGE_NUM: ");
-    uart_puts(itoa(PAGE_NUM));
-    uart_puts(" MAX_BLOCK_SIZE: ");
-    uart_puts(itoa(MAX_BLOCK_SIZE));
-    uart_puts("\r\n");
-
     for (int i=0; i<PAGE_NUM; i+=MAX_BLOCK_SIZE) {
         struct PageInfo *entry = page_list + i;
         entry->idx = i;
@@ -289,5 +296,100 @@ void _free(void *ptr) {
     // }
 
     print_free_page_msg(ptr, original_idx, curr_idx, order);
+    print_free_list();
+}
+
+void split(unsigned int idx, unsigned int order) {
+    if (order >= MAX_ORDER) return;
+    struct PageInfo *entry = page_list + idx;
+    rm_from_free_list(entry, order);
+    page_list[idx].entry_in_list = NULL;
+
+    order--;
+    entry->idx = idx;
+    entry->order = order;
+    add_to_free_list(entry, order);
+    page_list[idx].entry_in_list = entry;
+
+    int buddy_idx = get_buddy(idx, order);
+    struct PageInfo *buddy_entry = page_list + buddy_idx;
+    buddy_entry->idx = buddy_idx;
+    buddy_entry->order = order;
+    add_to_free_list(buddy_entry, order);
+    page_list[buddy_idx].entry_in_list = buddy_entry;
+}
+
+void reserve(void *start, void *end) {
+    end--;  // Exclude the end address
+    unsigned int start_idx = (start - memory_start) / PAGE_SIZE;
+    unsigned int end_idx = (end - memory_start) / PAGE_SIZE;
+
+    uart_puts("[x] Reserve memory from ");
+    uart_hex((unsigned long)start);
+    uart_puts(" (");
+    uart_puts(itoa(start_idx));
+    uart_puts(") to ");
+    uart_hex((unsigned long)end);
+    uart_puts(" (");
+    uart_puts(itoa(end_idx));
+    uart_puts(")\r\n");
+
+    // Split the chunk
+    for (int curr_order=MAX_ORDER-1; curr_order>0; curr_order--) {
+        unsigned int start_block_idx = start_idx - (start_idx & (1 << curr_order) - 1);
+        unsigned int end_block_idx = end_idx - (end_idx & (1 << curr_order) - 1);
+        // uart_puts("start_block_idx: ");
+        // uart_puts(itoa(start_block_idx));
+        // uart_puts(" end_block_idx: ");
+        // uart_puts(itoa(end_block_idx));
+        // uart_puts(" curr_order: ");
+        // uart_puts(itoa(curr_order));
+        // uart_puts("\r\n");
+
+        if(start_block_idx == end_block_idx) {  // The whole interval is in the same block
+            uart_puts("[*] The whole interval is in the same block: ");
+            uart_puts(itoa(start_block_idx));
+            uart_puts(" with order ");
+            uart_puts(itoa(curr_order));
+            uart_puts("\r\n");
+
+            if (page_list[start_block_idx].order == curr_order) {
+                split(start_block_idx, curr_order);
+            }
+        }
+        else {
+            uart_puts("[*] The whole interval is in different blocks: ");
+            uart_puts(itoa(start_block_idx));
+            uart_puts(" with order ");
+            uart_puts(itoa(curr_order));
+            uart_puts(" and ");
+            uart_puts(itoa(end_block_idx));
+            uart_puts(" with order ");
+            uart_puts(itoa(curr_order));
+            uart_puts("\r\n");
+
+            if (page_list[start_block_idx].order == curr_order) {
+                split(start_block_idx, curr_order);
+            }
+            if (page_list[end_block_idx].order == curr_order) {
+                split(end_block_idx, curr_order);
+            }
+            // split(start_block_idx, curr_order);
+            // split(end_block_idx, curr_order);
+        }
+    }
+
+    // Reserve the page
+    for (int i=start_idx; i<=end_idx;) {
+        struct PageInfo *entry = page_list + i;
+        if (page_list[i].entry_in_list != NULL) {
+            rm_from_free_list(entry, entry->order);
+            page_list[i].entry_in_list = NULL;
+        }
+        // uart_puts(itoa(entry->order));
+        // uart_puts("\r\n");
+        i += (1 << entry->order);
+    }
+
     print_free_list();
 }

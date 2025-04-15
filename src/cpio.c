@@ -2,6 +2,7 @@
 
 const unsigned long HEADER_SIZE = sizeof(struct cpio_newc_header);
 uint32_t cpio_addr;
+uint32_t cpio_end;
 
 char magic[6] = "070701";
 char header_magic[6];

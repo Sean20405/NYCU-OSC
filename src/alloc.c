@@ -178,7 +178,7 @@ void kfree(void *ptr) {
     int page_idx = (ptr - memory_start) / PAGE_SIZE;
     int order = page_list[page_idx].cache_order;
     if (order < MIN_CACHE_ORDER || order > MAX_CACHE_ORDER) {
-        uart_puts("Invalid pointer to free!\n");
+        uart_puts("[!] Invalid pointer to free: not in kmem cache!\n");
         return;
     }
     struct kmem_cache_entry *entry = (struct kmem_cache_entry*)(ptr - sizeof(struct kmem_cache_entry));
@@ -222,7 +222,7 @@ void free(void *ptr) {
     int page_idx = (ptr - memory_start) / PAGE_SIZE;
 
     if (page_idx < 0 || page_idx >= PAGE_NUM) {
-        uart_puts("Invalid pointer to free!\n");
+        uart_puts("[!] Invalid pointer to free: page index out of bounds!\n");
         return;
     }
 
