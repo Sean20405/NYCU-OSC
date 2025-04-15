@@ -170,7 +170,8 @@ void mm_init() {
 }
 
 void* _alloc(unsigned int size) {
-    if (size == 0 || size > MEMORY_SIZE) {
+    if (size == 0 || size > MAX_ALLOC_SIZE) {
+        uart_puts("The requested size is invalid!\n");
         return NULL;
     }
 

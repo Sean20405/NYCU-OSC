@@ -144,7 +144,7 @@ void* kmalloc(unsigned int size) {
 
     if (size == 0) return NULL;
     if (size > MAX_CHUNK_SIZE) {
-        uart_puts("Invalid size for kmalloc!\n");
+        uart_puts("The requested size is too large for kmalloc!\n");
         return NULL;
     }
     if (kmem_caches[order].free_list == NULL) {
@@ -274,4 +274,16 @@ void test_alloc() {
     for (int i=0; i<100; i++) {
         free(kmem_ptr[i]);
     }
+
+    // Test exceeding the maximum size
+    char *kmem_ptr7 = (char *)alloc(MAX_ALLOC_SIZE + 1);
+    if (kmem_ptr7 == NULL) {
+        uart_puts("Allocation failed as expected for size > MAX_ALLOC_SIZE\n");
+    }
+    else {
+        uart_puts("Unexpected allocation success for size > MAX_ALLOC_SIZE\n");
+        free(kmem_ptr7);
+    }
+
+    char *kmem_ptr8 = (char *)alloc(MAX_CHUNK_SIZE + 1);
 }

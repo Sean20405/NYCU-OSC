@@ -7,10 +7,10 @@
 
 #define MAX_ORDER       14
 #define PAGE_SIZE       4096
-// #define MEMORY_SIZE     0x3C000000  // Unit: byte
-#define MEMORY_SIZE     0x3C000000  // Unit: byte, TODO: for testing
+#define MEMORY_SIZE     0x3C000000  // Unit: byte
 #define PAGE_NUM        (MEMORY_SIZE / PAGE_SIZE)
 #define MAX_BLOCK_SIZE  (1 << (MAX_ORDER - 1))  // Max number of pages in a block
+#define MAX_ALLOC_SIZE  (PAGE_SIZE * MAX_BLOCK_SIZE)  // Max size of a block
 
 // The entry of the free list
 // struct Block {
