@@ -83,6 +83,7 @@ void sched_init() {
 
     thread_create(idle);
     set_current(idle_task);
+    idle_task->state = TASK_RUNNING;
 }
 
 struct ThreadTask* thread_create(void (*callback)(void)) {
@@ -153,9 +154,29 @@ void _exit() {
     rm_thread_task(&wait_queue, curr);
 
     curr->state = TASK_EXITED;
-    add_thread_task(&zombie_queue, curr);
 
     schedule();  // Switch to the next task
+}
+
+int _kill(unsigned int pid) {
+    struct ThreadTask *task = get_thread_task_by_id(pid);
+    if (task == NULL) {
+        uart_puts("[WARN] _kill: no running task with pid ");
+        uart_puts(itoa(pid));
+        uart_puts("\r\n");
+        return -1;
+    }
+
+    rm_thread_task(&ready_queue, task);
+    rm_thread_task(&wait_queue, task);
+
+    task->state = TASK_EXITED;
+
+    struct ThreadTask *curr = get_current();
+    if (curr == task) schedule();
+    else add_thread_task(&zombie_queue, task);
+
+    return 0;
 }
 
 void schedule() {

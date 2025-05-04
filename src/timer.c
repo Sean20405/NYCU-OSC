@@ -7,17 +7,26 @@ struct Timer {
     struct Timer* next;
     timer_callback callback;
     char msg[TIMER_MSG_SIZE];
-    int expiration;  // Unit: tick
+    unsigned long long expiration;  // Unit: tick
 };
 
 static struct Timer* timer_head = NULL;
+static int need_schedule = 0;
 
 void timer_enable_irq() {
+    // uart_puts("Enabling timer IRQ @");
+    // uart_hex(get_tick());
+    // uart_puts("\r\n");
+
     asm volatile("msr cntp_ctl_el0, %0"::"r"(1));
     *CORE0_TIMER_IRQ_CTRL = (1 << 1);
 }
 
 void timer_disable_irq() {
+    // uart_puts("Disabling timer IRQ @");
+    // uart_hex(get_tick());
+    // uart_puts("\r\n");
+
     asm volatile("msr cntp_ctl_el0, %0"::"r"(0));
     *CORE0_TIMER_IRQ_CTRL &= ~(1 << 1);
 }
@@ -50,11 +59,10 @@ void print_uptime(char* _) {
 }
 
 void keep_schedule(char* _) {
-    unsigned long long freq = get_freq();
-    freq >>= 5;
-    add_timer(keep_schedule, NULL, 2 * freq);
+    add_timer(keep_schedule, NULL, get_freq() >> 8);
 
-    schedule();
+    // schedule();
+    need_schedule = 1;
 }
 
 void timer_init() {
@@ -68,8 +76,25 @@ void timer_init() {
     add_timer(keep_schedule, NULL, get_freq() >> 5);
 }
 
+void print_timer_list() {
+    struct Timer* curr = timer_head;
+    uart_puts("Timer list:\r\n");
+    while (curr != NULL) {
+        uart_puts("Expiration: ");
+        uart_hex(curr->expiration);
+        uart_puts(", Message: ");
+        uart_puts(curr->msg);
+        uart_puts("\r\n");
+        curr = curr->next;
+    }
+}
+
 void core_timer_handler() {
-    int curr_tick = get_tick();
+    unsigned long long curr_tick = get_tick();
+
+    // uart_puts("[Timer handler] start @ ");
+    // uart_hex(curr_tick);
+    // uart_puts("\r\n");
 
     timer_disable_irq();
     enable_irq_el1();  // Can enable IRQ in advance for other interrupts
@@ -84,13 +109,27 @@ void core_timer_handler() {
         removed = 1;
 
         curr->callback(curr->msg);
-        // free(curr);
+        free(curr);
     }
 
     // Reset the timer
     if (removed && timer_head) {
         set_timer_irq(timer_head->expiration - curr_tick);
         timer_enable_irq();
+    }
+    else {
+        uart_puts("No timer to reset\r\n");
+    }
+
+    // print_timer_list();
+
+    // uart_puts("Timer handler finished @");
+    // uart_hex(get_tick());
+    // uart_puts("\r\n");
+
+    if (need_schedule) {
+        need_schedule = 0;
+        schedule();
     }
 }
 
@@ -122,7 +161,7 @@ void set_timeout(char* msg, int sec) {
 }
 
 void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
-    struct Timer* new_timer = (struct Timer*)simple_alloc(sizeof(struct Timer));
+    struct Timer* new_timer = (struct Timer*)alloc(sizeof(struct Timer));
     if (new_timer == NULL) {
         uart_puts("Failed to allocate memory for timer\r\n");
         return;
@@ -169,4 +208,12 @@ void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
         set_timer_irq(timer_head->expiration - curr_tick);
     }
     timer_enable_irq();
+
+    // uart_puts("Add a timer @");
+    // uart_hex(get_tick());
+    // uart_puts(", expiration: ");
+    // uart_hex(new_timer->expiration);
+    // uart_puts(", duration: ");
+    // uart_hex(new_timer->expiration - curr_tick);
+    // uart_puts("\r\n");
 }

@@ -12,7 +12,6 @@ void sys_getpid(struct TrapFrame *trapframe) {
     }
 
     trapframe->x[0] = curr->id;
-    // return curr->id;
 }
 
 void sys_uart_read(struct TrapFrame *trapframe) {
@@ -31,8 +30,9 @@ void sys_uart_read(struct TrapFrame *trapframe) {
         uart_puts("[WARN] sys_uart_read: buf is NULL\r\n");
         return -1;
     }
-    uart_getn(buf, size);
-    trapframe->x[0] = size;  // return size
+
+    unsigned int i = uart_getn(buf, size);
+    trapframe->x[0] = i;  // return size
 }
 
 void sys_uart_write(struct TrapFrame *trapframe) {
@@ -51,23 +51,24 @@ void sys_uart_write(struct TrapFrame *trapframe) {
         uart_puts("[WARN] sys_uart_write: buf is NULL\r\n");
         return;
     }
-    uart_putn(buf, size);
-    trapframe->x[0] = size;  // return size
+
+    unsigned int i = uart_putn(buf, size);
+    trapframe->x[0] = i;  // return size
 }
 
 void sys_exec(struct TrapFrame *trapframe) {
     // uart_puts("sys_exec called\r\n");
     char *name = (char *)trapframe->x[0];
     char **argv = (char **)trapframe->x[1];
-    if (name == NULL || argv == NULL) {
-        uart_puts("[WARN] sys_exec: name or argv is NULL\r\n");
+    if (name == NULL) {
+        uart_puts("[WARN] sys_exec: name is NULL\r\n");
         return -1;
     }
     if (name[0] == '\0') {
         uart_puts("[WARN] sys_exec: name is empty\r\n");
         return -1;
     }
-    exec(name);
+    _exec(name);
 }
 
 void sys_fork(struct TrapFrame *trapframe) {
@@ -166,21 +167,11 @@ void sys_mbox_call(struct TrapFrame *trapframe) {
 void sys_kill(struct TrapFrame *trapframe) {
     // uart_puts("sys_kill called\r\n");
     int pid = (int)trapframe->x[0];
-    struct ThreadTask *task = get_thread_task_by_id(pid);
-    if (task == NULL) {
-        uart_puts("[WARN] sys_kill: no running task with pid ");
-        uart_puts(itoa(pid));
-        uart_puts("\r\n");
-        return -1;
+    int ret = _kill(pid);
+    if (ret == -1) {
+        uart_puts("[WARN] sys_kill: kill failed\r\n");
+        return;
     }
-
-    rm_thread_task(&ready_queue, task);
-    rm_thread_task(&wait_queue, task);
-
-    task->state = TASK_EXITED;
-    add_thread_task(&zombie_queue, task);
-
-    schedule();
 }
 
 /* Wrapper function for syscall */
@@ -223,7 +214,7 @@ int uart_write(const char buf[], int size) {
     return ret;
 }
 
-int _exec(const char* name, char *const argv[]) {
+int exec(const char* name, char *const argv[]) {
     int ret;
     asm volatile(
         "mov x8, 3  \n"

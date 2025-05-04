@@ -146,7 +146,7 @@ void shell() {
         }
         else if (strcmp(cmd_name, "exec") == 0) {
             char *filename = cmd.args[0];
-            exec(filename);
+            exec(filename, "");
         }
         else if (strcmp(cmd_name, "test_async") == 0) {
             test_uart_async();

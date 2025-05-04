@@ -24,6 +24,7 @@ struct cpio_newc_header {
 
 void cpio_list();
 void cpio_cat(char *target_file);
-char* cpio_get_exec(char *target_file);
+char* cpio_get_exec(char *target_file, char *exec_addr);
+unsigned int cpio_get_file_size(char *target_file);
 
 #endif /* CPIO_H */

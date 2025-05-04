@@ -22,11 +22,11 @@ void uart_flush();
 void uart_flush_rx();
 void uart_flush_tx();
 char uart_getc();               // Read a char
-char *uart_getn(char *buffer, unsigned int n);  // Read n chars
 char *uart_gets(char *buffer);  // Read a string
+int *uart_getn(char *buffer, unsigned int n);  // Read n chars
 void uart_putc(char ch);        // Write a char
 void uart_puts(char *str);      // Write a string
-void uart_putn(char *str, unsigned int n);  // Write n chars
+int uart_putn(char *str, unsigned int n);  // Write n chars
 void uart_hex(unsigned int d);  // Write a hex number
 void uart_int(int d);           // Write an integer
 

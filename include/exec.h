@@ -6,7 +6,8 @@
 #include "uart.h"
 #include "cpio.h"
 #include "alloc.h"
+#include "sched.h"
 
-void exec(char* filename);
+void _exec(char* filename);
 
 #endif /* EXEC_H */

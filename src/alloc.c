@@ -160,13 +160,13 @@ void* kmalloc(unsigned int size) {
     kmem_freelist_pop(&kmem_caches[order]);
 
     void *ptr = (void*)entry + sizeof(struct kmem_cache_entry);  // Return the memory after the entry
-    uart_puts("[Chunk] Allocated chunk size ");
-    uart_puts(itoa(1 << (order + MIN_CACHE_ORDER)));
-    uart_puts(" at address ");
-    uart_hex((unsigned long)ptr);
-    uart_puts(" (header starts at ");
-    uart_hex((unsigned long)entry);
-    uart_puts(")\r\n");
+    // uart_puts("[Chunk] Allocated chunk size ");
+    // uart_puts(itoa(1 << (order + MIN_CACHE_ORDER)));
+    // uart_puts(" at address ");
+    // uart_hex((unsigned long)ptr);
+    // uart_puts(" (header starts at ");
+    // uart_hex((unsigned long)entry);
+    // uart_puts(")\r\n");
 
     return ptr;
 }
@@ -184,13 +184,13 @@ void kfree(void *ptr) {
     struct kmem_cache_entry *entry = (struct kmem_cache_entry*)(ptr - sizeof(struct kmem_cache_entry));
     kmem_freelist_push(entry, &kmem_caches[order - MIN_CACHE_ORDER]);
 
-    uart_puts("[Chunk] Freed chunk size ");
-    uart_puts(itoa(1 << (order)));
-    uart_puts(" at address ");
-    uart_hex((unsigned long)ptr);
-    uart_puts(" (header starts at ");
-    uart_hex((unsigned long)entry);
-    uart_puts(")\r\n");
+    // uart_puts("[Chunk] Freed chunk size ");
+    // uart_puts(itoa(1 << (order)));
+    // uart_puts(" at address ");
+    // uart_hex((unsigned long)ptr);
+    // uart_puts(" (header starts at ");
+    // uart_hex((unsigned long)entry);
+    // uart_puts(")\r\n");
 
     return;
 }

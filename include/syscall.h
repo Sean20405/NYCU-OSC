@@ -31,7 +31,7 @@ void sys_kill(struct TrapFrame *trapframe);
 int get_pid();
 int uart_read(char buf[], int size);
 int uart_write(const char buf[], int size);
-int _exec(const char* name, char *const argv[]);
+int exec(const char* name, char *const argv[]);
 int fork();
 void exit();
 int mbox_call(unsigned char ch, unsigned int *mbox);

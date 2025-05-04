@@ -9,6 +9,7 @@
 #include "alloc.h"
 #include "utils.h"
 #include "exec.h"
+#include "syscall.h"
 #include "mm.h"
 #include <stddef.h>
 

@@ -57,6 +57,7 @@ extern unsigned int thread_cnt;
 void sched_init();
 struct ThreadTask* thread_create(void (*callback)(void));
 void _exit();
+int _kill(unsigned int pid);
 void schedule();
 void kill_zombies();
 void idle();

@@ -1,9 +1,9 @@
 #include "uart.h"
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
-char rx_buffer[BUFFER_SIZE];   // Ring array
-char tx_buffer[BUFFER_SIZE];   
+char* rx_buffer;   // Ring array
+char* tx_buffer;   
 unsigned long rx_buffer_head = 0;       // The front of the buffer
 unsigned long rx_buffer_tail = 0;        // The index of the next character to be read
 unsigned long tx_buffer_head = 0;
@@ -45,6 +45,9 @@ void init_uart() {
     *GPPUDCLK0 = 0;
 
     *AUX_MU_CNTL_REG = 3;  // Enable transmitter and receiver
+
+    rx_buffer = (char*)alloc(BUFFER_SIZE);
+    tx_buffer = (char*)alloc(BUFFER_SIZE);
 }
 
 
@@ -86,23 +89,6 @@ char uart_getc() {
 }
 
 
-char *uart_getn(char *buffer, unsigned int n) {
-    char *ptr = buffer;
-    char ch;
-    unsigned int i;
-    for (i = 0; i < n; i++) {
-        ch = uart_getc();
-        if (ch == '\r') break;
-        // uart_putc(ch);
-        *ptr = ch;
-        ptr++;
-    }
-    if (ch == '\r') uart_puts("\r\n");
-    *ptr = '\0';
-    return buffer;
-}
-
-
 char *uart_gets(char *buffer) {
     char *ptr = buffer;
     char ch;
@@ -114,6 +100,20 @@ char *uart_gets(char *buffer) {
     if (ch == '\r') uart_puts("\r\n");
     *ptr = '\0';
     return buffer;
+}
+
+
+int *uart_getn(char *buffer, unsigned int n) {
+    char *ptr = buffer;
+    char ch;
+    unsigned int i;
+    for (i = 0; i < n; i++) {
+        ch = uart_getc();
+        *ptr = ch;
+        ptr++;
+    }
+    *ptr = '\0';
+    return i;
 }
 
 
@@ -135,11 +135,12 @@ void uart_puts(char *str) {
 }
 
 
-void uart_putn(char *str, unsigned int n) {
+int uart_putn(char *str, unsigned int n) {
     unsigned int i;
     for (i = 0; i < n; i++) {
         uart_putc(str[i]);
     }
+    return i;
 }
 
 

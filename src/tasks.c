@@ -13,7 +13,7 @@ static struct Task* task_head = NULL;
 static int curr_priority = MAX_PRIORITY + 1;
 
 void add_task(task_callback callback, int priority) {
-    struct Task* new_task = (struct Task*)simple_alloc(sizeof(struct Task));
+    struct Task* new_task = (struct Task*)alloc(sizeof(struct Task));
 
     if (new_task == NULL) {
         uart_puts("Failed to allocate memory for task\r\n");
@@ -61,6 +61,7 @@ void execute_task() {
     curr_task->callback();
 
     // Free the completed task
+    free(curr_task);
 }
 
 
