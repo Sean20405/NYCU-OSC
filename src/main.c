@@ -160,30 +160,6 @@ void create_shell_thread() {
     );
 }
 
-void exec_thread() {
-    // char *filename = "syscall.img";
-    uart_enable_irq();
-    exec("syscall.img", "");
-    schedule();
-}
-
-void create_syscall_img_thread() {
-    struct ThreadTask* new_thread = thread_create(exec_thread);
-    asm volatile(
-        "msr tpidr_el1, %0\n"
-        "mov x5, 0x0\n"
-        "msr spsr_el1, x5\n"
-        "msr elr_el1, %1\n"
-        "msr sp_el0, %2\n"
-        "mov sp, %3\n"
-        "eret"
-        :
-        : "r"(new_thread), "r"(new_thread->cpu_context.lr), "r"(new_thread->cpu_context.sp), 
-          "r"(new_thread->kernel_stack + THREAD_STACK_SIZE)
-        : "x5"
-    );
-}
-
 void main() {
     // Get the address of the device tree blob
     uint32_t dtb_address;
@@ -225,7 +201,6 @@ void main() {
     // thread_create(test_syscall);
 
     create_shell_thread();
-    // create_syscall_img_thread();
     
     // Lab3 Basic 2: Print uptime every 2 seconds
     // add_timer(print_uptime, NULL, 2 * get_freq());

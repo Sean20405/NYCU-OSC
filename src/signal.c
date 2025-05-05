@@ -7,12 +7,6 @@ void check_pending_signals(struct ThreadTask *task, struct TrapFrame *trapframe)
     
     for (int sig = 0; sig < SIG_NUM; sig++) {
         if (task->pending_sig & (1 << sig)) {
-            // uart_puts("[INFO] check_pending_signals: find signal ");
-            // uart_puts(itoa(sig));
-            // uart_puts(" in task ");
-            // uart_puts(itoa(task->id));
-            // uart_puts("\r\n");
-
             task->pending_sig &= ~(1 << sig);  // Clear the signal
             handle_signal(task, sig, trapframe);
         }

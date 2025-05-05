@@ -201,21 +201,6 @@ void schedule() {
 
         if (next == NULL || next == prev) return;
 
-        // uart_puts("prev: ");
-        // uart_hex((unsigned long)prev);
-        // uart_puts(" (");
-        // uart_puts(itoa(prev->id));
-        // uart_puts("), next: ");
-        // uart_hex((unsigned long)next);
-        // uart_puts(" (");
-        // if (next != NULL) {
-        //     uart_puts(itoa(next->id));
-        // }
-        // else {
-        //     uart_puts("NULL");
-        // }
-        // uart_puts(")\r\n");
-
         if (prev->state == TASK_RUNNING) {
             prev->state = TASK_READY;
             add_thread_task(&ready_queue, prev);

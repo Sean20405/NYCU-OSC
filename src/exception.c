@@ -38,10 +38,6 @@ void irq_entry(unsigned long sp) {
     unsigned int irq_src = *CORE0_IRQ_SOURCE;
     unsigned int pending_1 = *IRQ_PENDING_1;
 
-    // uart_puts("\r\n==========================\r\n[irq_entry] start @");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
-
     disable_irq_el1();
     if (irq_src & TIMER_IRQ) {  // Timer interrupt
         add_task(core_timer_handler, 0);
@@ -54,19 +50,11 @@ void irq_entry(unsigned long sp) {
 
     struct TrapFrame *trapframe = (struct TrapFrame *)sp;
     check_pending_signals(get_current(), trapframe);
-
-    // uart_puts("[irq_entry] end @");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
 }
 
 void el0_sync_entry(unsigned long sp, unsigned long esr_el1) {
     struct TrapFrame *trapframe = (struct TrapFrame *)sp;
     unsigned long ec = (esr_el1 >> 26) & 0x3f;  // Extract the exception class
-
-    // uart_puts("[el0_sync_entry] start @ ");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
 
     if (ec == 0x15) {  // System call
         enable_irq_el1();
@@ -83,10 +71,6 @@ void el0_sync_entry(unsigned long sp, unsigned long esr_el1) {
 
 void syscall_entry(struct TrapFrame *trapframe) {
     unsigned long syscall_num = trapframe->x[8];  // x8 contains the syscall number
-
-    // uart_puts("[syscall entry] start @ ");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
 
     switch (syscall_num) {
         case SYS_GETPID_NUM:
@@ -127,10 +111,6 @@ void syscall_entry(struct TrapFrame *trapframe) {
             uart_hex(syscall_num);
             uart_puts("\r\n");
     }
-
-    // uart_puts("[syscall entry] end @ ");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
 }
 
 void enable_irq_el1() {

@@ -60,8 +60,6 @@ void print_uptime(char* _) {
 
 void keep_schedule(char* _) {
     add_timer(keep_schedule, NULL, get_freq() >> 8);
-
-    // schedule();
     need_schedule = 1;
 }
 
@@ -120,12 +118,6 @@ void core_timer_handler() {
     else {
         uart_puts("No timer to reset\r\n");
     }
-
-    // print_timer_list();
-
-    // uart_puts("Timer handler finished @");
-    // uart_hex(get_tick());
-    // uart_puts("\r\n");
 
     if (need_schedule) {
         need_schedule = 0;
@@ -208,12 +200,4 @@ void add_timer(timer_callback callback, char* msg, unsigned long long tick) {
         set_timer_irq(timer_head->expiration - curr_tick);
     }
     timer_enable_irq();
-
-    // uart_puts("Add a timer @");
-    // uart_hex(get_tick());
-    // uart_puts(", expiration: ");
-    // uart_hex(new_timer->expiration);
-    // uart_puts(", duration: ");
-    // uart_hex(new_timer->expiration - curr_tick);
-    // uart_puts("\r\n");
 }

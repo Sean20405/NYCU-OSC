@@ -219,7 +219,6 @@ void sys_sigkill(struct TrapFrame *trapframe) {
         uart_puts("[WARN] sys_sigkill: invalid signal number\r\n");
         return;
     }
-
     
     task->pending_sig |= (1 << sig);  // Set the pending signal
 }

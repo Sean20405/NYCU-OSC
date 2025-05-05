@@ -11,10 +11,10 @@
 #define MAX_TASKS 64
 #define DEFAULT_PRIORITY 10
 #define THREAD_STACK_SIZE 0x1000  // 4KB stack size
-#define TASK_READY 0 // Task state: ready
-#define TASK_RUNNING 1 // Task state: running
-#define TASK_BLOCKED 2 // Task state: blocked
-#define TASK_EXITED 3 // Task state: exited
+#define TASK_READY 0
+#define TASK_RUNNING 1
+#define TASK_BLOCKED 2
+#define TASK_EXITED 3
 
 struct cpu_context {
     unsigned long x19;
@@ -71,7 +71,5 @@ int _kill(unsigned int pid);
 void schedule();
 void kill_zombies();
 void idle();
-
-void exec_thread();
 
 #endif /* SCHED_H */
