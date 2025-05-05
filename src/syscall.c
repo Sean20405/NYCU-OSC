@@ -107,6 +107,11 @@ void sys_fork(struct TrapFrame *trapframe) {
         trapframe->x[0] = -1;
         return;
     }
+
+    child_thread->pending_sig = parent_thread->pending_sig;
+    for (int i = 0; i < SIG_NUM; i++) {
+        child_thread->sig_handlers[i] = parent_thread->sig_handlers[i];
+    }
     child_thread->next = NULL;
 
     memcpy(&child_thread->cpu_context, &parent_thread->cpu_context, sizeof(struct cpu_context));
@@ -172,6 +177,67 @@ void sys_kill(struct TrapFrame *trapframe) {
         uart_puts("[WARN] sys_kill: kill failed\r\n");
         return;
     }
+}
+
+void sys_signal(struct TrapFrame *trapframe) {
+    // uart_puts("sys_signal called\r\n");
+    int sig = (int)trapframe->x[0];
+    sighandler_t handler = (sighandler_t)trapframe->x[1];
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("[WARN] sys_signal: current task is NULL\r\n");
+        return;
+    }
+    
+    if (sig < 0 || sig >= SIG_NUM) {
+        uart_puts("[WARN] sys_signal: invalid signal number\r\n");
+        return;
+    }
+
+    uart_puts("[INFO] sys_signal: setting signal handler, new handler @");
+    uart_hex((unsigned long)handler);
+    uart_puts("\r\n");
+    
+    sighandler_t old_handler = curr->sig_handlers[sig];
+    curr->sig_handlers[sig] = handler;
+    
+    trapframe->x[0] = (unsigned long)old_handler;  // return old_handler
+}
+
+void sys_sigkill(struct TrapFrame *trapframe) {
+    // uart_puts("sys_sigkill called\r\n");
+    int pid = (int)trapframe->x[0];
+    int sig = (int)trapframe->x[1];
+
+    struct ThreadTask *task = get_thread_task_by_id(pid);
+    if (task == NULL) {
+        uart_puts("[WARN] sys_sigkill: task not found\r\n");
+        return;
+    }
+
+    if (sig < 0 || sig >= SIG_NUM) {
+        uart_puts("[WARN] sys_sigkill: invalid signal number\r\n");
+        return;
+    }
+
+    
+    task->pending_sig |= (1 << sig);  // Set the pending signal
+}
+
+void sys_sigreturn(struct TrapFrame *trapframe) {
+    // uart_puts("sys_sigreturn called\r\n");
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("Current task is NULL\r\n");
+        return;
+    }
+
+    // Free the handler stack
+    free(curr->cpu_context.fp - THREAD_STACK_SIZE);
+
+    // Restore the trapframe
+    memcpy(trapframe, &curr->sig_frame, sizeof(struct TrapFrame));
+    return;
 }
 
 /* Wrapper function for syscall */
@@ -267,5 +333,40 @@ void kill(int pid) {
         "svc 0      \n"
         : 
         : "r"(pid)
+    );
+}
+
+sighandler_t signal(int sig, sighandler_t handler) {
+    sighandler_t old_handler;
+    asm volatile(
+        "mov x8, 8  \n"
+        "mov x0, %0  \n"
+        "mov x1, %1  \n"
+        "svc 0      \n"
+        "mov %0, x0  \n"
+        : "=r"(old_handler)
+        : "r"(sig), "r"(handler)
+    );
+    return old_handler;
+}
+
+int sigkill(int pid, int sig) {
+    int ret;
+    asm volatile(
+        "mov x8, 9  \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(pid), "r"(sig)
+    );
+    return ret;
+}
+
+void sigreturn() {
+    asm volatile(
+        "mov x8, 10 \n"
+        "svc 0      \n"
     );
 }

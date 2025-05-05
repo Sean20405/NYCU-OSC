@@ -102,6 +102,7 @@ exception_handler:
 
 irq_handler:
     save_all
+    mov x0, sp
     bl irq_entry
     load_all
     eret

@@ -5,6 +5,8 @@
 #include "alloc.h"
 #include "uart.h"
 #include "exec.h"
+#include "signal.h"
+#include "exception.h"
 
 #define MAX_TASKS 64
 #define DEFAULT_PRIORITY 10
@@ -39,6 +41,13 @@ struct ThreadTask {
     long preempt_count;  // Whether this task can be preempted currently, non-zero means cannot.
     void* kernel_stack;
     void* user_stack;
+
+    // Signal handling
+    unsigned int pending_sig;           // A binary mask of pending signals
+    sighandler_t sig_handlers[SIG_NUM]; // Signal handlers
+    struct TrapFrame *sig_frame;        // Saved context before jumping to signal handler
+    
+    // Linked list pointers
     struct ThreadTask *next;
 };
 
@@ -56,6 +65,7 @@ extern unsigned int thread_cnt;
 
 void sched_init();
 struct ThreadTask* thread_create(void (*callback)(void));
+struct ThreadTask* get_thread_task_by_id(int pid);
 void _exit();
 int _kill(unsigned int pid);
 void schedule();

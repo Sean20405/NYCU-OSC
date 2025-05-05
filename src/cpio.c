@@ -162,4 +162,5 @@ unsigned int cpio_get_file_size(char *target_file) {
             break;
         }
     }
+    return 0;
 }

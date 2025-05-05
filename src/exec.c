@@ -2,6 +2,12 @@
 
 void _exec(char* filename) {
     unsigned int exec_size = cpio_get_file_size(filename);
+    if (exec_size == 0) {
+        uart_puts(filename);
+        uart_puts(":  File not found\r\n");
+        return;
+    }
+
     uart_puts("File: ");
     uart_puts(filename);
     uart_puts(", size: ");

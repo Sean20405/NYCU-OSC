@@ -113,6 +113,14 @@ struct ThreadTask* thread_create(void (*callback)(void)) {
         free(task);
         return -1;
     }
+
+    // Initialize signal handling
+    task->pending_sig = 0;
+    for (int i = 0; i < SIG_NUM; i++) {
+        if (i == SIGKILL) task->sig_handlers[i] = default_sigkill_handler;
+        else task->sig_handlers[i] = default_handler;
+    }
+    task->sig_frame = (struct TrapFrame *)alloc(sizeof(struct TrapFrame));
     task->next = NULL;
 
     memset((void*)&task->cpu_context, 0, sizeof(struct cpu_context));

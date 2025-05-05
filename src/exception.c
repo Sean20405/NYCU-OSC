@@ -34,7 +34,7 @@ void exception_entry() {
  *
  * The function handles the core timer interrupt and the UART interrupt.
  */
-void irq_entry() {
+void irq_entry(unsigned long sp) {
     unsigned int irq_src = *CORE0_IRQ_SOURCE;
     unsigned int pending_1 = *IRQ_PENDING_1;
 
@@ -42,7 +42,7 @@ void irq_entry() {
     // uart_hex(get_tick());
     // uart_puts("\r\n");
 
-    // disable_irq_el1();
+    disable_irq_el1();
     if (irq_src & TIMER_IRQ) {  // Timer interrupt
         add_task(core_timer_handler, 0);
         execute_task();
@@ -51,6 +51,9 @@ void irq_entry() {
         uart_irq_handler();
     }
     enable_irq_el1();
+
+    struct TrapFrame *trapframe = (struct TrapFrame *)sp;
+    check_pending_signals(get_current(), trapframe);
 
     // uart_puts("[irq_entry] end @");
     // uart_hex(get_tick());
@@ -73,6 +76,8 @@ void el0_sync_entry(unsigned long sp, unsigned long esr_el1) {
         uart_puts("Unknown exception class\r\n");
         exception_entry();
     }
+
+    check_pending_signals(get_current(), trapframe);
     return;
 }
 
@@ -107,6 +112,15 @@ void syscall_entry(struct TrapFrame *trapframe) {
             break;
         case SYS_KILL_NUM:
             sys_kill(trapframe);
+            break;
+        case SYS_SIGNAL_NUM:
+            sys_signal(trapframe);
+            break;
+        case SYS_SIGKILL_NUM:
+            sys_sigkill(trapframe);
+            break;
+        case SYS_SIGRETURE_NUM:
+            sys_sigreturn(trapframe);
             break;
         default:
             uart_puts("Unknown syscall number: ");
