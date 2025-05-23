@@ -8,6 +8,7 @@
 #include "syscall.h"
 #include "exec.h"
 
+extern char *kernel_start;
 extern char *__stack_top;
 extern uint32_t cpio_addr;
 extern uint32_t cpio_end;
@@ -144,7 +145,16 @@ void test_syscall() {
 
 // Create a shell thread that run in EL0
 void create_shell_thread() {
+    uart_puts("Creating shell thread...\n");
     struct ThreadTask* new_thread = thread_create(shell);
+    uart_puts("elr_el1: ");
+    uart_hex(new_thread->cpu_context.lr);
+    uart_puts(" sp: ");
+    uart_hex(new_thread->cpu_context.sp);
+    uart_puts(" kernel_stack: ");
+    uart_hex(new_thread->kernel_stack + THREAD_STACK_SIZE);
+    uart_puts("\n");
+    
     asm volatile(
         "msr tpidr_el1, %0\n"
         "mov x5, 0x0\n"
@@ -177,8 +187,8 @@ void main() {
     }
 
     mm_init();
-    reserve(0x0000, 0x1000);                                    // Spin tables for multicore boot
-    reserve(0x80000, (void*)&__stack_top);                      // Kernel image & startup allocator
+    reserve(0x0000, 0x4000);                                    // Spin tables for multicore boot + PGD & PUD's page frame
+    reserve((void*)&kernel_start, (void*)&__stack_top);         // Kernel image & startup allocator
     reserve((void*)cpio_addr, (void*)cpio_end);                 // Initramfs
     reserve((void*)dtb_address, (void*)dtb_address + be2le_u32(fdt_total_size));   // Devicetree 
 

@@ -150,7 +150,7 @@ void mm_init() {
     }
 
     // Allocate the frame array
-    memory_start = 0x00000000;  // TODO: For testing
+    memory_start = 0x00000000;
     memset(page_list, 0, sizeof(page_list));
 
     // Initialize the free list and page list

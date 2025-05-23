@@ -2,12 +2,13 @@
 
 void exception_entry() {
     // Print spsr_el1, elr_el1, and esr_el1
-    unsigned long spsr_el1, elr_el1, esr_el1;
+    unsigned long spsr_el1, elr_el1, esr_el1, far_el1;
     asm volatile(
         "mrs %0, spsr_el1\n"
         "mrs %1, elr_el1\n"
         "mrs %2, esr_el1\n"
-        : "=r"(spsr_el1), "=r"(elr_el1), "=r"(esr_el1)
+        "mrs %3, far_el1\n"
+        : "=r"(spsr_el1), "=r"(elr_el1), "=r"(esr_el1), "=r"(far_el1)
         :
         :
     );
@@ -22,6 +23,8 @@ void exception_entry() {
     uart_hex(esr_el1);
     uart_puts(" EC: ");
     uart_hex(ec);
+    uart_puts(" far_el1: ");
+    uart_hex(far_el1);
     uart_puts("\r\n");
 }
 

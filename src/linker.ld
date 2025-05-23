@@ -1,6 +1,8 @@
 SECTIONS
 {
-  . = 0x80000;
+  . = 0xffff000000000000;  /* kernel space */
+  . += 0x80000;  /* kernel load address */
+  kernel_start = .;
   .text.boot : { KEEP(*(.text.boot)) }
   .text : { *(.text) }
   .rodata : { *(.rodata) }
