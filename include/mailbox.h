@@ -25,6 +25,8 @@
 #define TAG_REQUEST_CODE    0x00000000
 #define END_TAG             0x00000000
 
+extern volatile unsigned int pt[64];
+
 unsigned int mailbox_call(volatile unsigned int *mbox, unsigned char channel);
 
 #endif /* MAILBOX_H */

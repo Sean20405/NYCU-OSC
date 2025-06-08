@@ -1,5 +1,7 @@
 #include "mailbox.h"
 
+volatile unsigned int  __attribute__((aligned(16))) pt[64];
+
 unsigned int mailbox_call(volatile unsigned int *mbox, unsigned char channel) {
     unsigned int msg = ((unsigned int)((unsigned long)mbox) & ~0xF) | (channel & 0xF);
     do { asm volatile("nop"); } while (*MAILBOX_STATUS & MAILBOX_FULL);

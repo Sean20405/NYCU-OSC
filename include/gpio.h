@@ -1,7 +1,7 @@
 #ifndef GPIO_H
 #define GPIO_H
 
-#define MMIO_BASE       0x3f000000
+#define MMIO_BASE       (0x3f000000 + 0xffff000000000000)  // virtual address
 
 #define GPFSEL1         ((volatile unsigned int*)(MMIO_BASE + 0x00200004))
 #define GPPUD           ((volatile unsigned int*)(MMIO_BASE + 0x00200094))

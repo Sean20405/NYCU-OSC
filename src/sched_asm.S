@@ -15,9 +15,19 @@ cpu_switch_to:
     ldp x25, x26, [x1, 16 * 3]
     ldp x27, x28, [x1, 16 * 4]
     ldp fp, lr, [x1, 16 * 5]
-    ldr x9, [x1, 16 * 6]
+    ldp x9, x10, [x1, 16 * 6]
     mov sp,  x9
     msr tpidr_el1, x1
+
+    // switch page table
+    dsb ish				// ensure write has completed
+	msr	ttbr0_el1, x10
+	tlbi vmalle1is		// invalidate all TLB entries
+	dsb ish				// ensure completion of TLB invalidatation
+	isb					// clear pipeline
+
+    msr daifclr, #0xf   // enable all interrupts
+
     ret
 
 .global get_current

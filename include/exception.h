@@ -4,8 +4,9 @@
 #include "uart.h"
 #include "timer.h"
 #include "syscall.h"
+#include "sched.h"
 
-#define IRQ_BASE            0x3f00b000
+#define IRQ_BASE            (0x3f00b000 + 0xffff000000000000)
 
 #define IRQ_BASIC_PENDING   ((volatile unsigned int*)(IRQ_BASE + 0x200))
 #define IRQ_PENDING_1       ((volatile unsigned int*)(IRQ_BASE + 0x204))
@@ -18,7 +19,7 @@
 #define DISABLE_IRQS_2      ((volatile unsigned int*)(IRQ_BASE + 0x220))
 #define DISABLE_BASIC_IRQS  ((volatile unsigned int*)(IRQ_BASE + 0x224))
 
-#define CORE0_IRQ_SOURCE    ((volatile unsigned int *)0x40000060)
+#define CORE0_IRQ_SOURCE    ((volatile unsigned int *)(0x40000060 + 0xffff000000000000))  // virtual address
 #define TIMER_IRQ           (1 << 1)
 #define GPU_IRQ             (1 << 8)  // mini UART IRQ bit
 

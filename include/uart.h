@@ -28,6 +28,7 @@ void uart_putc(char ch);        // Write a char
 void uart_puts(char *str);      // Write a string
 int uart_putn(char *str, unsigned int n);  // Write n chars
 void uart_hex(unsigned int d);  // Write a hex number
+void uart_hex_long(unsigned long d);
 void uart_int(int d);           // Write an integer
 
 /* IRQ related */

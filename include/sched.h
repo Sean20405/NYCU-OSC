@@ -15,6 +15,7 @@
 #define TASK_RUNNING 1
 #define TASK_BLOCKED 2
 #define TASK_EXITED 3
+#define MAX_PROCESS_PAGES 16
 
 struct cpu_context {
     unsigned long x19;
@@ -30,6 +31,20 @@ struct cpu_context {
     unsigned long fp;
     unsigned long lr;
     unsigned long sp;
+    unsigned long pgd;
+};
+
+struct user_page {
+	unsigned long phys_addr;
+	unsigned long virt_addr;
+};
+
+struct mm_struct {
+	unsigned long *pgd;  // Physical address of pgd (Page Global Directory)
+	// int user_pages_count;
+	// struct user_page user_pages[MAX_PROCESS_PAGES];
+	// int kernel_pages_count;
+	// unsigned long kernel_pages[MAX_PROCESS_PAGES];
 };
 
 struct ThreadTask {
@@ -42,10 +57,16 @@ struct ThreadTask {
     void* kernel_stack;
     void* user_stack;
 
+    void* text; // Pointer to the text segment (code)
+    unsigned int text_size; // Size of the text segment
+
     // Signal handling
     unsigned int pending_sig;           // A binary mask of pending signals
     sighandler_t sig_handlers[SIG_NUM]; // Signal handlers
     struct TrapFrame *sig_frame;        // Saved context before jumping to signal handler
+
+    // Virtual memory management
+    // struct mm_struct *mm;
     
     // Linked list pointers
     struct ThreadTask *next;
@@ -64,7 +85,7 @@ extern struct ThreadTask *zombie_queue;
 extern unsigned int thread_cnt;
 
 void sched_init();
-struct ThreadTask* thread_create(void (*callback)(void));
+struct ThreadTask* thread_create(void (*callback)(void), unsigned int filesize);
 struct ThreadTask* get_thread_task_by_id(int pid);
 void _exit();
 int _kill(unsigned int pid);

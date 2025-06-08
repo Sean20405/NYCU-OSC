@@ -95,7 +95,9 @@ void print_free_list() {
         while (entry != NULL) {
             cnt++;
             uart_puts(itoa(entry->idx));
-            uart_puts(" -> ");
+            uart_puts("(");
+            uart_hex_long((unsigned long)entry);
+            uart_puts(") -> ");
             entry = entry->next;
         }
         uart_puts("NULL\t[");
@@ -205,7 +207,7 @@ void* _alloc(unsigned int size) {
             void *addr = memory_start + block->idx * PAGE_SIZE;
             // print_alloc_page_msg(addr, block->idx, order);
             // print_free_list();
-            return addr;
+            return PHYS_TO_VIRT(addr);
         }
     }
     return NULL;  // No suitable block found

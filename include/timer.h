@@ -8,7 +8,7 @@
 #include "sched.h"
 #include <stddef.h>
 
-#define CORE0_TIMER_IRQ_CTRL ((volatile unsigned int *)0x40000040)
+#define CORE0_TIMER_IRQ_CTRL ((volatile unsigned int *)(0x40000040 + 0xffff000000000000)) // virtual address
 
 typedef void (*timer_callback)(char*);
 

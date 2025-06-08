@@ -23,7 +23,21 @@ void _exec(char* filename) {
         return;
     }
 
-    struct ThreadTask* new_thread = thread_create(exec_addr);
+    timer_disable_irq();
+    struct ThreadTask* new_thread = thread_create(exec_addr, exec_size);
+    set_pgd(new_thread->cpu_context.pgd);
+    // uart_puts("New thread created with ID: ");
+    // uart_puts(itoa(new_thread->id));
+    // uart_puts("\r\n");
+    
+    // TODO: handle virtual memory when scheduling (I guess pgd is not properly switched)
+    // timer_enable_irq();
+    
+    uart_puts("Running new thread with ID: ");
+    uart_puts(itoa(new_thread->id));
+    uart_puts("\r\n");
+    timer_enable_irq();
+    new_thread->state = TASK_RUNNING;
     asm volatile(
         "msr tpidr_el1, %0\n"
         "mov x5, 0x0\n"
@@ -33,7 +47,7 @@ void _exec(char* filename) {
         "mov sp, %3\n"
         "eret"
         :
-        : "r"(new_thread), "r"(new_thread->cpu_context.lr), "r"(new_thread->cpu_context.sp), 
+        : "r"(new_thread), "r"(0), "r"(new_thread->cpu_context.sp), 
           "r"(new_thread->kernel_stack + THREAD_STACK_SIZE)
         : "x5"
     );

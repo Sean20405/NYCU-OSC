@@ -118,7 +118,6 @@ void core_timer_handler() {
     else {
         uart_puts("No timer to reset\r\n");
     }
-
     if (need_schedule) {
         need_schedule = 0;
         schedule();

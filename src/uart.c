@@ -144,6 +144,18 @@ int uart_putn(char *str, unsigned int n) {
 }
 
 
+void uart_hex_long(unsigned long d) {
+    unsigned int n;
+    int c;
+    uart_puts("0x");
+    for (c = 60; c >= 0; c -= 4) {
+        n = (d >> c) & 0xF;
+        if (n <= 9) uart_putc(n + '0');
+        else uart_putc(n - 10 + 'a');
+    }
+}
+
+
 void uart_hex(unsigned int d) {
     unsigned int n;
     int c;

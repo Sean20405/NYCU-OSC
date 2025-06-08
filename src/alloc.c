@@ -57,7 +57,7 @@ void print_kmem_freelist() {
         uart_puts(itoa(kmem_caches[i].cache_size));
         uart_puts("\r\n");
         while (entry != NULL) {
-            uart_hex((unsigned long)entry);
+            uart_hex_long((unsigned long)entry);
             uart_puts(" -> ");
             entry = entry->next;
         }
@@ -175,7 +175,8 @@ void kfree(void *ptr) {
     if (ptr == NULL) return;
     if (ptr >= (void*)&__bss_end && ptr < (void*)&__stack_top) return;  // Out of bounds
 
-    int page_idx = (ptr - memory_start) / PAGE_SIZE;
+    void *phys_ptr = VIRT_TO_PHYS(ptr);
+    int page_idx = (phys_ptr - memory_start) / PAGE_SIZE;
     int order = page_list[page_idx].cache_order;
     if (order < MIN_CACHE_ORDER || order > MAX_CACHE_ORDER) {
         uart_puts("[!] Invalid pointer to free: not in kmem cache!\n");
@@ -215,11 +216,13 @@ void* alloc(unsigned int size) {
 }
 
 void free(void *ptr) {
-    if (ptr == NULL) return;
-    if (ptr >= (void*)&__bss_end && ptr < (void*)&__stack_top) return;  // Out of bounds
+    void *phys_ptr = VIRT_TO_PHYS(ptr);
+
+    if (phys_ptr == NULL) return;
+    if (phys_ptr >= (void*)&__bss_end && phys_ptr < (void*)&__stack_top) return;  // Out of bounds
 
     // Find the corresponding page index
-    int page_idx = (ptr - memory_start) / PAGE_SIZE;
+    int page_idx = (phys_ptr - memory_start) / PAGE_SIZE;
 
     if (page_idx < 0 || page_idx >= PAGE_NUM) {
         uart_puts("[!] Invalid pointer to free: page index out of bounds!\n");
@@ -231,7 +234,7 @@ void free(void *ptr) {
         // print_kmem_freelit();
     }
     else {
-        _free(ptr);
+        _free(phys_ptr);
     }
     return;
 }

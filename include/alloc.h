@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "mm.h"
+#include "mmu.h"
 #include "uart.h"
 
 struct kmem_cache_entry {

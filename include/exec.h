@@ -7,6 +7,7 @@
 #include "cpio.h"
 #include "alloc.h"
 #include "sched.h"
+#include "mmu_reg.h"
 
 void _exec(char* filename);
 

@@ -1,6 +1,9 @@
 #include "signal.h"
 
 void check_pending_signals(struct ThreadTask *task, struct TrapFrame *trapframe) {
+    // uart_puts("[INFO] check_pending_signals: checking pending signals for task ");
+    // uart_puts(itoa(task->id));
+    // uart_puts("\r\n");
     if (task->pending_sig == 0) {
         return;  // No pending signals
     }

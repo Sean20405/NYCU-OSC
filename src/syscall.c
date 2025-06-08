@@ -92,6 +92,8 @@ void sys_fork(struct TrapFrame *trapframe) {
     child_thread->counter = parent_thread->counter;
     child_thread->priority = parent_thread->priority;
     child_thread->preempt_count = parent_thread->preempt_count;
+    child_thread->text = parent_thread->text;
+    child_thread->text_size = parent_thread->text_size;
     child_thread->kernel_stack = alloc(THREAD_STACK_SIZE);
     if (child_thread->kernel_stack == NULL) {
         uart_puts("Failed to allocate memory for new task stack\r\n");
@@ -115,12 +117,49 @@ void sys_fork(struct TrapFrame *trapframe) {
     child_thread->next = NULL;
 
     memcpy(&child_thread->cpu_context, &parent_thread->cpu_context, sizeof(struct cpu_context));
-    
+
     // Copy stack
     memcpy(child_thread->user_stack, parent_thread->user_stack, THREAD_STACK_SIZE);
     memcpy(child_thread->kernel_stack, parent_thread->kernel_stack, THREAD_STACK_SIZE);
 
-    // Set sp
+    // Copy memory management structure
+    // child_thread->mm = (struct mm_struct *)alloc(sizeof(struct mm_struct));
+    // if (child_thread->mm == NULL) {
+    //     uart_puts("Failed to allocate memory for new task mm_struct\r\n");
+    //     free(child_thread->kernel_stack);
+    //     free(child_thread->user_stack);
+    //     free(child_thread);
+    //     trapframe->x[0] = -1;
+    //     return;
+    // }
+
+    unsigned long *pgd_virt = (unsigned long *)alloc(PAGE_SIZE);
+    memset(pgd_virt, 0, PAGE_SIZE);
+    child_thread->cpu_context.pgd = (unsigned long*)VIRT_TO_PHYS((unsigned long)pgd_virt);
+    // uart_puts("Allocated PGD at: ");
+    // uart_hex_long((unsigned long)child_thread->cpu_context.pgd);
+    // uart_puts("\n");
+
+    // uart_puts("user stack: ");
+    // uart_hex_long((unsigned long)child_thread->user_stack);
+    // uart_puts(", kernel stack: ");
+    // uart_hex_long((unsigned long)child_thread->kernel_stack);
+    // uart_puts("\n");
+
+    // uart_puts("Mapping user and kernel stacks for stacks\r\n");
+    unsigned long flags = PD_ACCESS | (MAIR_IDX_NORMAL_NOCACHE << 2) | PD_TABLE | PD_USER_ACCESS;
+    // uart_puts("Mapping user stack\r\n");
+    map_pages(child_thread->cpu_context.pgd, 0xffffffffb000, VIRT_TO_PHYS(child_thread->user_stack),  3 * THREAD_STACK_SIZE, flags);
+    // uart_puts("Mapping kernel stack\r\n");
+    // flags &= ~PD_USER_ACCESS;   // Disable user access for kernel stack
+    map_pages(child_thread->cpu_context.pgd, 0xffffffffe000, VIRT_TO_PHYS(child_thread->kernel_stack),  THREAD_STACK_SIZE, flags);
+    // uart_puts("Mapping callback function\r\n");
+    flags = PD_ACCESS | (MAIR_IDX_NORMAL_NOCACHE << 2) | PD_TABLE | PD_USER_ACCESS;
+    map_pages(child_thread->cpu_context.pgd, 0, VIRT_TO_PHYS((unsigned long)parent_thread->text), parent_thread->text_size, flags);
+
+    map_pages(child_thread->cpu_context.pgd, 0x3c000000, 0x3c000000, 0x3000000, flags);  // mailbox address
+
+    // Set sp (TODO)
     unsigned long curr_sp;
     asm volatile("mov %0, sp" : "=r"(curr_sp));
     unsigned long curr_sp_offset = curr_sp - (unsigned long)parent_thread->kernel_stack;
@@ -130,7 +169,7 @@ void sys_fork(struct TrapFrame *trapframe) {
     struct TrapFrame *child_frame = (struct TrapFrame *)(child_thread->kernel_stack + ((void*)trapframe - parent_thread->kernel_stack));
     memcpy(child_frame, trapframe, sizeof(struct TrapFrame));
     child_frame->x[0] = 0;
-    child_frame->sp_el0 = (unsigned long)(child_thread->user_stack + ((void*)trapframe->sp_el0 - parent_thread->user_stack));  // Set the stack pointer to the new task's stack
+    child_frame->sp_el0 = trapframe->sp_el0;
     child_thread->cpu_context.lr = &&SYSCALL_FORK_END;
 
     add_thread_task(&ready_queue, child_thread);
@@ -159,12 +198,11 @@ void sys_mbox_call(struct TrapFrame *trapframe) {
         uart_puts("[WARN] sys_mbox_call: channel is invalid\r\n");
         return -1;
     }
-    
-    int ret = mailbox_call(mbox, channel);
-    if (ret == 0) {
-        uart_puts("[WARN] sys_mbox_call: mailbox call failed\r\n");
-        return -1;
-    }
+
+    unsigned int size_of_mbox = mbox[0];
+    memcpy((char *)pt, mbox, size_of_mbox);
+    mailbox_call(pt, channel);
+    memcpy(mbox, (char *)pt, size_of_mbox);
 
     trapframe->x[0] = mbox[1];  // return mbox[1]
 }

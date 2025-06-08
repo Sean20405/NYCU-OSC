@@ -8,8 +8,8 @@ uint32_t fdt_total_size = 0;
 static uint32_t g_fdt_strings_size = 0;
 static uint32_t g_fdt_structure_size = 0;
 
-extern uint32_t cpio_addr;
-extern uint32_t cpio_end;
+extern uint64_t cpio_addr;
+extern uint64_t cpio_end;
 
 int fdt_init(const void* fdt_base) {
     if (!fdt_base) return 0;
@@ -144,10 +144,10 @@ void fdt_print_header(const struct fdt_header* header) {
 
 int initramfs_callback(int type, const char* name, const void* data, uint32_t size, void* user_data) {
     if (strcmp(name, "linux,initrd-start") == 0) {
-        cpio_addr = be2le_u32(*(uint32_t*)data);
+        cpio_addr = PHYS_TO_VIRT((uint64_t)be2le_u32(*(uint32_t*)data));
     }
     else if (strcmp(name, "linux,initrd-end") == 0) {
-        cpio_end = be2le_u32(*(uint32_t*)data);
+        cpio_end = PHYS_TO_VIRT((uint64_t)be2le_u32(*(uint32_t*)data));
     }
     return 0;
 }

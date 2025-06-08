@@ -20,58 +20,65 @@ init_vm:
     ldr     x0, =MAIR_VALUE
     msr     mair_el1, x0
 
+    // bl      page_table_create
+
 create_page_tables:
     // Preserve 0x0 - 0x1000 for spin table
     mov     x0, 0x1000          // PGD's page frame at 0x1000
     mov     x1, 0x2000          // PUD's page frame at 0x2000
 
-    ldr     x2, =BOOT_PGD_ATTR
+    ldr     x2, =PD_TABLE
     orr     x2, x1, x2          // combine the physical address of next level page with attribute.
     str     x2, [x0]
 
-    ldr     x2, =BOOT_PGD_ATTR  // Or BOOT_PGD_ATTR
-    mov     x3, 0x3000          // PMD's page frame at 0x3000
+    ldr     x2, =PD_TABLE       // Or BOOT_PGD_ATTR
+    mov     x3, 0x00000000          // 1st PMD at 0x3000
     orr     x3, x2, x3
-    str     x3, [x1]            // 1st 1GB mapped by the 1st entry of PUD
-    ldr     x2, =BOOT_DEVICE_ATTR
-    mov     x3, 0x40000000      // Device memory at 0x40000000
+    str     x3, [x1]
+    ldr     x2, =PD_TABLE
+    mov     x3, 0x40000000          // 2nd PMD at 0x4000
     orr     x3, x2, x3
     str     x3, [x1, 8]         // 2nd 1GB mapped by the 2nd entry of PUD
 
-    mov     x2, 0x00000000
-    mov     x3, 0x40000000
-    ldr     x4, =BOOT_NORMAL_ATTR
-    ldr     x5, =BOOT_DEVICE_ATTR
-    mov     x6, 512                 // 512 entries in a PMD (1GB/2MB = 512)
-    mov     x7, 0x3000              // PMD's address
-
-fine_grain_ram_mmio:
-    cbz     x6, boot_mmu
-    cmp     x2, x3
-    bge     mmio_region
-
-normal_ram:
-    orr     x8, x2, x4
-    str     x8, [x7], #8
-    add     x2, x2, #0x200000   // 2MB
-    sub     x6, x6, 1
-    b       fine_grain_ram_mmio
-
-mmio_region:
-    orr     x8, x2, x5
-    str     x8, [x7], #8
-    add     x2, x2, #0x200000   // 2MB
-    sub     x6, x6, 1
-    b       fine_grain_ram_mmio
+//     mov     x2, 0x00000000
+//     mov     x3, 0x3f000000
+//     ldr     x4, =BOOT_NORMAL_ATTR
+//     ldr     x5, =BOOT_DEVICE_ATTR
+//     mov     x6, 1024                // 512 entries in a PMD (1GB/2MB = 512)
+//     mov     x7, 0x3000              // PMD's address
+// 
+// fine_grain_ram_mmio:
+//     cbz     x6, boot_mmu
+//     cmp     x2, x3
+//     bge     mmio_region
+// 
+// normal_ram:
+//     orr     x8, x2, x4
+//     str     x8, [x7], #8
+//     add     x2, x2, #0x200000   // 2MB
+//     sub     x6, x6, 1
+//     b       fine_grain_ram_mmio
+// 
+// mmio_region:
+//     orr     x8, x2, x5
+//     str     x8, [x7], #8
+//     add     x2, x2, #0x200000   // 2MB
+//     sub     x6, x6, 1
+//     b       fine_grain_ram_mmio
 
 boot_mmu:
     msr     ttbr0_el1, x0       // load PGD to the bottom translation-based register -> used for user space
     msr     ttbr1_el1, x0       // upper -> kernel space
 
+    mov     sp, 0x3c000000
+    bl      three_level_translation_init
+
     mrs     x2, sctlr_el1
     orr     x2 , x2, 1
     msr     sctlr_el1, x2       // enable MMU, cache remains disabled
 
+    ldr     x1, =KERNEL_VA_BASE
+    add     sp, sp, x1          // set stack pointer to the kernel virtual address base
     ldr     x2, =boot_rest      // indirect branch to the virtual address
     br      x2
 
@@ -129,3 +136,89 @@ from_el2_to_el1:
 
     msr     elr_el2, lr
     eret                    // Exception Return. Return to EL1
+
+page_table_create:
+
+	// Each page table base address
+	// x0: PGD (1 page, 1 entry)
+	// x1: PUD (1 page, 2 entry)
+	// x2: PMD (1 page, 512 entry)
+	// x3: PTE (512 page, each 512 entry)
+
+    /*	
+    `+---------------------------------------------------------------------------------------+
+     |0\          |0\1\        |0\1\ ....\511|0\ ... \511|0\ ... \511|   ...     |0\ ... \511|
+     +------------+------------+-------------+-----------+-----------------------+-----------+
+     PGD          PUD          PMD           PTE#0       PTE#1           ...     PTE#511
+     x0           x1           x2            x3
+                  0 for normal               #0 ~ #503 for normal PTE         
+                  1 for device               
+    */	
+	
+	// omit first 16 bit (using physical address)
+	ldr     x0, =0x1000
+	lsl     x0, x0, #16
+	lsr     x0, x0, #16            // PGD address
+	add     x1, x0, #0x1000     // PUD address
+	add     x2, x1, #0x1000     // PMD address
+	add     x3, x2, #0x1000     // PTE address
+	
+	// setup PGD
+	ldr     x4, =PD_TABLE
+	orr     x4, x1, x4 // PUD physical address
+	str     x4, [x0]
+	
+	// setup PUD0    for normal memory
+	ldr     x4, =PD_TABLE
+	orr     x4, x2, x4 // PMD physical address
+	str     x4, [x1]
+	
+	// setup PUD1    for device memory
+	ldr     x4, =BOOT_DEVICE_ATTR
+	mov     x5, 0x40000000  //(1GB section start from 0x40000000)
+        //The second one maps 0x40000000 - 0x7fffffff(ARM local peripherals).
+	orr     x4, x5, x4 // PMD physical address
+	str     x4, [x1, #8]
+	
+	// setup PMD (512 entry in 1 page)
+	mov     x4, x3    // x4 = point to the current PTE address
+	mov     x5, xzr   // x5 = loop iter
+	mov     x6, #512  // x6 = loop size
+	
+1:      
+    ldr     x7, =PD_TABLE
+    orr     x7, x4, x7 // PTE physical address
+    str     x7, [x2, x5, lsl #3] // x2 + x5 * 8(<<3)
+    add     x5, x5, #1           // x5 = loop iter
+    add     x4, x4, #0x1000   // x4 = point to the current PTE address 
+	cmp     x5, x6
+	b.ls    1b
+	
+	// setup normal PTE (512 * 512 - 4096 = 258048 entry)
+	mov     x4, xzr // physical address
+	mov     x5, xzr // i = 0
+	mov     x6, #258048
+2:
+    ldr     x7, =PTE_NORAL_ATTR
+    orr     x7, x4, x7
+    str     x7, [x3, x5, lsl #3] // x3 + x5 * 8(<<3)
+    add     x5, x5, #1
+    add     x4, x4, #0x1000
+    cmp     x5, x6
+    b.ls    2b
+    
+    // setup device PTE (16MB = 4096 entry) for peripheral region
+    add     x6, x6, #4096 // 262144
+3:
+	ldr     x7, =PTE_DEVICE_ATTR
+	orr     x7, x4, x7
+	str     x7, [x3, x5, lsl #3] // x3 + x5 * 8(<<3)
+	add     x5, x5, #1
+	add     x4, x4, #0x1000
+	cmp     x5, x6
+	b.ls	3b
+      
+    msr     ttbr0_el1, x0 // load PGD to the buttom translation based register.
+    msr     ttbr1_el1, x0 // load PGD to the upper translation based register.
+    
+    ret
