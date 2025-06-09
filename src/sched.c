@@ -129,6 +129,11 @@ struct ThreadTask* thread_create(void (*callback)(void)) {
         task->fd_table[i] = NULL;
     }
 
+    // Initialize file descriptors for stdin, stdout, and stderr
+    vfs_open("/dev/uart", 0, &task->fd_table[0]);  // stdin
+    vfs_open("/dev/uart", 0, &task->fd_table[1]);  // stdout
+    vfs_open("/dev/uart", 0, &task->fd_table[2]);  // stderr
+
     memset((void*)&task->cpu_context, 0, sizeof(struct cpu_context));
     task->cpu_context.lr = (unsigned long)callback; // Set the entry point of the task
     task->cpu_context.sp = (unsigned long)task->user_stack + THREAD_STACK_SIZE;

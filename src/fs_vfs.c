@@ -121,16 +121,16 @@ int vfs_open(const char* pathname, int flags, struct file** target) {
 int vfs_close(struct file* file) {
     if (file == NULL) return EINVAL_VFS;
 
+    uart_puts("[vfs_close] file: ");
+    uart_hex((unsigned long)file);
+    uart_puts("\r\n");
+
     int ret = 0;
     if (file->f_ops && file->f_ops->close) {
         ret = file->f_ops->close(file);
     }
     else {
         return ENOSYS_VFS; // Close operation not implemented
-    }
-
-    if (file != NULL) {
-        free(file);
     }
 
     return ret;
@@ -247,6 +247,34 @@ int vfs_mkdir(const char* pathname) {
         uart_puts("Parent directory does not support mkdir operation\n");
         return EACCES_VFS;
     }
+}
+
+int vfs_mknod(const char* pathname, struct file_operations* f_ops) {
+    uart_puts("[vfs_mknod] called with pathname: ");
+    uart_puts(pathname);
+    uart_puts("\r\n");
+
+    if (pathname == NULL) {
+        return EINVAL_VFS;
+    }
+
+    struct file *dev = NULL;
+    int ret = vfs_open(pathname, O_CREAT, &dev);
+    if (ret != 0) {
+        uart_puts("[vfs_mknod] vfs_open failed: ");
+        uart_puts(pathname);
+        uart_puts("\r\n");
+        return ret; // Return the error code from vfs_open
+    }
+    dev->f_ops = f_ops;
+    ret = vfs_close(dev);
+    if (ret != 0) {
+        uart_puts("[vfs_mknod] vfs_close failed: ");
+        uart_puts(pathname);
+        uart_puts("\r\n");
+        return ret; // Return the error code from vfs_close
+    }
+    return 0;
 }
 
 // Mount a filesystem at a target path, handle the operation before entering the mount point
@@ -528,4 +556,7 @@ void vfs_init() {
     struct vnode *initramfs_node;
     vfs_lookup("/initramfs", &initramfs_node);
     initramfs_init(initramfs_node);
+
+    vfs_mkdir("/dev");
+    vfs_mknod("/dev/uart", &uart_f_ops);
 }

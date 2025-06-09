@@ -493,13 +493,13 @@ void main() {
 
     kmem_cache_init();
 
+    vfs_init();
+
     enable_irq_el1();
 
     sched_init();
 
     timer_init();
-
-    vfs_init();
 
     // run_tmpfs_test_suite();
     // run_mount_tests();

@@ -5,6 +5,7 @@
 #include "string.h"
 #include "fs_tmpfs.h"
 #include "fs_initramfs.h"
+#include "dev_uart.h"
 
 // Placeholder for O_CREAT flag, typically from <fcntl.h>
 #define O_CREAT 00000100  // Example value, ensure it matches your system\'s O_CREAT
@@ -87,6 +88,7 @@ int vfs_write(struct file* file, const void* buf, size_t len);
 int vfs_read(struct file* file, void* buf, size_t len);
 
 int vfs_mkdir(const char* pathname);
+int vfs_mknod(const char* pathname, struct file_operations* f_ops);
 int vfs_mount(const char* target, const char* filesystem);
 int vfs_lookup(const char* pathname, struct vnode** target);
 
