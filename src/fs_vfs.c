@@ -520,19 +520,12 @@ void vfs_init() {
         return;
     }
     filesystems[0]->setup_mount(filesystems[0], rootfs);
-    // Initialize CWD for the initial/current task
-    struct ThreadTask *initial_task = get_current(); 
-    if (initial_task != NULL) {
-        if (rootfs && rootfs->root) { // Ensure rootfs and its root are valid
-            rootfs->root->parent = NULL; // Explicitly set parent of global root to NULL
-            initial_task->cwd = rootfs->root;
-            uart_puts("VFS initialized successfully. CWD for the current task set to rootfs->root.\\r\\n");
-        }
-        else {
-            uart_puts("VFS initialization error: rootfs or rootfs->root is NULL. Cannot set CWD.\\r\\n");
-        }
-    }
-    else {
-        uart_puts("VFS initialization error: Initial task is NULL. Cannot set CWD.\\r\\n");
-    }
+    rootfs->root->parent = NULL;
+
+    vfs_mkdir("/initramfs");
+    register_initramfs();
+    vfs_mount("/initramfs", "initramfs");
+    struct vnode *initramfs_node;
+    vfs_lookup("/initramfs", &initramfs_node);
+    initramfs_init(initramfs_node);
 }

@@ -7,9 +7,9 @@
 #include "uart.h"
 #include <stddef.h>
 
-#define TMPFS_MAX_FILE_NAME 64          // Maximum length for a file/dir name in tmpfs
-#define TMPFS_MAX_CHILDREN 16           // Max children per directory (for a simple array-based approach)
-#define TMPFS_DEFAULT_FILE_SIZE 4096    // Default buffer size for a new file
+#define MAX_FILE_NAME 64
+#define MAX_CHILDREN 16
+#define DEFAULT_FILE_SIZE 4096 
 
 // Enum to distinguish between file and directory
 typedef enum {
@@ -18,7 +18,7 @@ typedef enum {
 } tmpfs_node_type_t;
 
 struct tmpfs_node {
-    char name[TMPFS_MAX_FILE_NAME];
+    char name[MAX_FILE_NAME];
     tmpfs_node_type_t type;
     struct tmpfs_node* parent; // Pointer to parent directory node
 
@@ -28,7 +28,7 @@ struct tmpfs_node {
     size_t capacity; // Allocated buffer capacity for data
 
     // For directories
-    struct vnode* children[TMPFS_MAX_CHILDREN];
+    struct vnode* children[MAX_CHILDREN];
     int num_children;
 };
 
@@ -38,6 +38,8 @@ extern struct vnode_operations tmpfs_vnode_ops;
 
 // Function to set up a tmpfs mount
 int tmpfs_setup_mount(struct filesystem* fs, struct mount* mount);
+int register_tmpfs(void);
+void initramfs_init(struct vnode* rootvnode);
 
 int tmpfs_lookup(struct vnode* dir_node, struct vnode** target, const char* component_name);
 int tmpfs_create(struct vnode* dir_node, struct vnode** target, const char* component_name);
@@ -48,9 +50,5 @@ int tmpfs_close(struct file* file);
 int tmpfs_write(struct file* file, const void* buf, size_t len);
 int tmpfs_read(struct file* file, void* buf, size_t len);
 long tmpfs_lseek64(struct file* file, long offset, int whence);
-
-int register_tmpfs(void);
-
-struct tmpfs_node* tmpfs_create_internal_node(const char* name, tmpfs_node_type_t type, struct tmpfs_node* parent);
 
 #endif // FS_TMPFS_H

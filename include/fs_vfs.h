@@ -1,9 +1,10 @@
 #ifndef FS_VFS_H
 #define FS_VFS_H
 
-#include "string.h"
 #include <stddef.h>
-#include "fs_tmpfs.h"  // For debug
+#include "string.h"
+#include "fs_tmpfs.h"
+#include "fs_initramfs.h"
 
 // Placeholder for O_CREAT flag, typically from <fcntl.h>
 #define O_CREAT 00000100  // Example value, ensure it matches your system\'s O_CREAT
@@ -24,6 +25,10 @@
 #define SEEK_SET 0 // Seek from the beginning of the file
 #define SEEK_CUR 1 // Seek from the current position
 #define SEEK_END 2 // Seek from the end of the file
+
+#define MAX_FILE_NAME 64
+#define MAX_CHILDREN 16
+#define DEFAULT_FILE_SIZE 4096 
 
 // Specific return code from vfs_lookup to indicate path not found,
 // used by vfs_open to trigger create logic.

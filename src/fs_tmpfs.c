@@ -30,18 +30,18 @@ struct tmpfs_node* tmpfs_create_internal_node(const char* name, tmpfs_node_type_
     new_node->size = 0;
     new_node->capacity = 0;
     new_node->num_children = 0;
-    for (int i = 0; i < TMPFS_MAX_CHILDREN; ++i) {
+    for (int i = 0; i < MAX_CHILDREN; ++i) {
         new_node->children[i] = NULL;
     }
 
     if (type == TMPFS_NODE_FILE) {
-        new_node->data = (char*)alloc(TMPFS_DEFAULT_FILE_SIZE);
+        new_node->data = (char*)alloc(DEFAULT_FILE_SIZE);
         if (!new_node->data) {
             uart_puts("tmpfs_create_internal_node: Failed to allocate memory for file data\r\n");
             free(new_node);
             return NULL;
         }
-        new_node->capacity = TMPFS_DEFAULT_FILE_SIZE;
+        new_node->capacity = DEFAULT_FILE_SIZE;
     }
     return new_node;
 }
@@ -122,7 +122,7 @@ int tmpfs_create_or_mkdir(struct vnode* dir_node, struct vnode** target, const c
         return EACCES_VFS; // Cannot create in a non-directory
     }
 
-    if (strlen(component_name) >= TMPFS_MAX_FILE_NAME) {
+    if (strlen(component_name) >= MAX_FILE_NAME) {
         return EINVAL_VFS; // Name too long
     }
 
@@ -134,7 +134,7 @@ int tmpfs_create_or_mkdir(struct vnode* dir_node, struct vnode** target, const c
         }
     }
 
-    if (parent_internal->num_children >= TMPFS_MAX_CHILDREN) {
+    if (parent_internal->num_children >= MAX_CHILDREN) {
         return ENOMEM_VFS; // Directory full
     }
 
@@ -218,7 +218,7 @@ int tmpfs_write(struct file* file, const void* buf, size_t len) {
     // Check if we need to reallocate buffer
     if (file->f_pos + len > internal_node->capacity) {
         size_t required_capacity = file->f_pos + len;
-        size_t new_capacity = internal_node->capacity > 0 ? internal_node->capacity : TMPFS_DEFAULT_FILE_SIZE;
+        size_t new_capacity = internal_node->capacity > 0 ? internal_node->capacity : DEFAULT_FILE_SIZE;
         while (new_capacity < required_capacity) {
             new_capacity *= 2; // Double the capacity
         }
