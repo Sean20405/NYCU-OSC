@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "syscall.h"
 #include "exec.h"
+#include "fs_vfs.h"
 
 extern char *__stack_top;
 extern uint32_t cpio_addr;
@@ -160,6 +161,314 @@ void create_shell_thread() {
     );
 }
 
+static void print_status_msg(const char* msg, int status_code) {
+    uart_puts(msg);
+    if (status_code == 0) {
+        uart_puts("0 (SUCCESS)");
+    } else {
+        uart_puts("- (FAILURE, code: ");
+        // 基本的負整數轉字串（VFS 錯誤碼通常為負）
+        if (status_code < 0) {
+            uart_puts("-");
+            int s_abs = -status_code;
+            char b[12]; // 足夠容納 int
+            int i = 0;
+            if (s_abs == 0) { b[i++] = '0'; }
+            else {
+                int temp_s = s_abs;
+                while(temp_s > 0) { temp_s /= 10; i++;} // 計算位數
+                b[i] = '\0';
+                temp_s = s_abs;
+                while(i > 0){ i--; b[i] = (temp_s % 10) + '0'; temp_s /= 10;}
+            }
+            uart_puts(b);
+        } else {
+             uart_puts("positive value"); // VFS 錯誤碼通常不為正
+        }
+        uart_puts(")");
+    }
+    uart_puts("\r\n");
+}
+
+void run_tmpfs_test_suite() {
+    struct file* f = NULL;
+    struct vnode* v_node = NULL;
+    char buffer[100];
+    int ret;
+    int bytes_rw;
+    const char* write_data = "Hello tmpfs!";
+    size_t write_len = strlen(write_data);
+
+    uart_puts("\r\n--- Starting tmpfs Test Suite ---\r\n");
+
+    // 測試 1: 建立目錄
+    uart_puts("\r\n▍ Test 1: Creating directory /mydir ...\r\n");
+    ret = vfs_mkdir("/mydir");
+    print_status_msg("  vfs_mkdir(\"/mydir\") result: ", ret);
+    int test1_ok = (ret == 0);
+
+    // 測試 2: 在新目錄中建立檔案
+    uart_puts("\r\n▍ Test 2: Creating file /mydir/testfile.txt ...\r\n");
+    if (test1_ok) {
+        ret = vfs_open("/mydir/testfile.txt", O_CREAT, &f);
+        print_status_msg("  vfs_open(\"/mydir/testfile.txt\", O_CREAT) result: ", ret);
+        if (ret == 0 && f != NULL) {
+            uart_puts("    File handle obtained.\r\n");
+        } else {
+            f = NULL;
+            uart_puts("    Failed to obtain file handle.\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test 1 success).\r\n");
+        ret = -1; 
+    }
+    int test2_ok = (ret == 0 && f != NULL);
+
+    // 測試 3: 寫入檔案
+    uart_puts("\r\n▍ Test 3: Writing to /mydir/testfile.txt ...\r\n");
+    if (test2_ok) {
+        bytes_rw = vfs_write(f, write_data, write_len);
+        uart_puts("  vfs_write result (bytes written): ");
+        if (bytes_rw == (int)write_len) { uart_puts("SUCCESS (expected length written)\r\n"); }
+        else { uart_puts("FAILURE (bytes_rw != expected_len)\r\n"); }
+    } else {
+        uart_puts("  Skipped (dependent on Test 2 success).\r\n");
+        bytes_rw = -1;
+    }
+    int test3_ok = (bytes_rw == (int)write_len);
+
+    // 測試 4: 定位並讀取檔案
+    uart_puts("\r\n▍ Test 4: Seeking and reading from /mydir/testfile.txt ...\r\n");
+    if (test3_ok) {
+        uart_puts("  Seeking to beginning (SEEK_SET, 0)...\r\n");
+        long lseek_ret = f->f_ops->lseek64(f, 0, SEEK_SET); // 直接使用 f_ops->lseek64
+        print_status_msg("    lseek64 result (new position): ", (int)lseek_ret);
+
+        memset(buffer, 0, sizeof(buffer));
+        uart_puts("  Reading back data...\r\n");
+        bytes_rw = vfs_read(f, buffer, write_len);
+        uart_puts("    vfs_read result (bytes read): ");
+        if (bytes_rw == (int)write_len) { uart_puts("SUCCESS (expected length read)\r\n"); }
+        else { uart_puts("FAILURE (bytes_rw != expected_len)\r\n"); }
+
+        if (bytes_rw == (int)write_len && strcmp(buffer, write_data) == 0) {
+            uart_puts("    Data verification: SUCCESS. Read: '"); uart_puts(buffer); uart_puts("'\r\n");
+        } else {
+            uart_puts("    Data verification: FAILURE. Read: '"); uart_puts(buffer); uart_puts("', Expected: '"); uart_puts(write_data); uart_puts("'\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test 3 success).\r\n");
+    }
+
+    // 測試 5: 關閉檔案
+    uart_puts("\r\n▍ Test 5: Closing /mydir/testfile.txt ...\r\n");
+    if (f != NULL) {
+        ret = vfs_close(f);
+        print_status_msg("  vfs_close result: ", ret);
+        f = NULL; 
+    } else {
+        uart_puts("  Skipped (file not open).\r\n");
+    }
+    // 注意: 根據目前的 VFS 設計，與 f 關聯的 vnode (f->vnode) 在此處可能發生記憶體洩漏。
+
+    // 測試 6: 查找目錄
+    uart_puts("\r\n▍ Test 6: Looking up directory /mydir ...\r\n");
+    if (test1_ok) {
+        ret = vfs_lookup("/mydir", &v_node);
+        print_status_msg("  vfs_lookup(\"/mydir\") result: ", ret);
+        if (ret == 0 && v_node != NULL) {
+            uart_puts("    Directory /mydir looked up successfully.\r\n");
+        } else {
+            uart_puts("    Failed to lookup /mydir.\r\n");
+        }
+    } else {
+         uart_puts("  Skipped (dependent on Test 1 success for /mydir existence).\r\n");
+    }
+
+    // 測試 7: 查找檔案
+    uart_puts("\r\n▍ Test 7: Looking up file /mydir/testfile.txt ...\r\n");
+    if (test1_ok && test2_ok) { // 假設目錄和檔案已成功建立
+        ret = vfs_lookup("/mydir/testfile.txt", &v_node);
+        print_status_msg("  vfs_lookup(\"/mydir/testfile.txt\") result: ", ret);
+        if (ret == 0 && v_node != NULL) {
+            uart_puts("    File /mydir/testfile.txt looked up successfully.\r\n");
+        } else {
+            uart_puts("    Failed to lookup /mydir/testfile.txt.\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test 1 & 2 success for file existence).\r\n");
+    }
+
+    // 測試 8: 查找不存在的檔案
+    uart_puts("\r\n▍ Test 8: Looking up non-existent file /nosuchfile.txt ...\r\n");
+    ret = vfs_lookup("/nosuchfile.txt", &v_node);
+    print_status_msg("  vfs_lookup(\"/nosuchfile.txt\") result: ", ret);
+    if (ret == ENOENT_VFS) {
+        uart_puts("    Correctly failed with ENOENT_VFS.\r\n");
+    } else {
+        uart_puts("    Failed with unexpected code or v_node was not NULL.\r\n");
+        if (v_node != NULL) { free(v_node); v_node = NULL; }
+    }
+
+    // 測試 9: 使用 O_CREAT 開啟已存在的檔案
+    uart_puts("\r\n▍ Test 9: Opening existing file /mydir/testfile.txt with O_CREAT ...\r\n");
+    if (test1_ok && test2_ok) { // 檔案先前已成功建立
+        struct file* f_reopen = NULL;
+        ret = vfs_open("/mydir/testfile.txt", O_CREAT, &f_reopen);
+        print_status_msg("  vfs_open (existing, O_CREAT) result: ", ret);
+        if (ret == 0 && f_reopen != NULL) {
+            uart_puts("    Successfully opened existing file with O_CREAT.\r\n");
+            memset(buffer, 0, sizeof(buffer));
+            bytes_rw = vfs_read(f_reopen, buffer, write_len);
+            uart_puts("    vfs_read after reopen (bytes read): ");
+            if (bytes_rw == (int)write_len) { uart_puts("SUCCESS\r\n"); } else { uart_puts("FAILURE\r\n"); }
+
+            if (bytes_rw == (int)write_len && strcmp(buffer, write_data) == 0) {
+                uart_puts("    Data verification after reopen: SUCCESS. Read: '"); uart_puts(buffer); uart_puts("'\r\n");
+            } else {
+                uart_puts("    Data verification after reopen: FAILURE. Read: '"); uart_puts(buffer); uart_puts("', Expected: '"); uart_puts(write_data); uart_puts("'\r\n");
+            }
+            vfs_close(f_reopen);
+        } else {
+            uart_puts("    Failed to open existing file with O_CREAT.\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on previous tests for file existence).\r\n");
+    }
+
+    uart_puts("--- tmpfs Test Suite Finished ---\r\n");
+}
+
+void run_mount_tests() {
+    struct file* f = NULL;
+    char buffer[100];
+    int ret;
+    int bytes_rw;
+    const char* write_data_orig = "Original FS data!";
+    size_t write_len_orig = strlen(write_data_orig);
+    const char* write_data_mounted = "Mounted FS data!";
+    size_t write_len_mounted = strlen(write_data_mounted);
+
+    uart_puts("\r\n--- Starting Mount Test Suite ---\r\n");
+
+    // 前置作業：確保根 tmpfs 已初始化，並建立一個掛載點目錄
+    uart_puts("Mount Test Setup: Creating /mountpointdir ...\r\n");
+    ret = vfs_mkdir("/mountpointdir");
+    print_status_msg("  vfs_mkdir(\"/mountpointdir\") result: ", ret);
+    if (ret != 0) {
+        uart_puts("  Failed to create /mountpointdir, aborting mount tests.\r\n");
+        return;
+    }
+
+    // 測試 M1: 在原始檔案系統的 /mountpointdir 中建立檔案
+    uart_puts("\r\n▍ Test M1: Creating and writing to /mountpointdir/pre_mount.txt ...\r\n");
+    ret = vfs_open("/mountpointdir/pre_mount.txt", O_CREAT, &f);
+    print_status_msg("  vfs_open(\"/mountpointdir/pre_mount.txt\", O_CREAT) result: ", ret);
+    if (ret == 0 && f != NULL) {
+        bytes_rw = vfs_write(f, write_data_orig, write_len_orig);
+        if (bytes_rw == (int)write_len_orig) {
+            uart_puts("    Write to pre_mount.txt: SUCCESS\r\n");
+        } else {
+            uart_puts("    Write to pre_mount.txt: FAILURE\r\n");
+        }
+        vfs_close(f); f = NULL;
+    } else {
+        uart_puts("    Failed to create /mountpointdir/pre_mount.txt\r\n");
+    }
+
+    // 測試 M2: 掛載新的 tmpfs 到 /mountpointdir
+    uart_puts("\r\n▍ Test M2: Mounting a new tmpfs onto /mountpointdir ...\r\n");
+    ret = vfs_mount("/mountpointdir", "tmpfs");
+    print_status_msg("  vfs_mount(\"/mountpointdir\", \"tmpfs\") result: ", ret);
+    int mount_ok = (ret == 0);
+
+    // 測試 M3: 在掛載的檔案系統中建立檔案
+    uart_puts("\r\n▍ Test M3: Creating and writing to /mountpointdir/on_mounted.txt ...\r\n");
+    if (mount_ok) {
+        ret = vfs_open("/mountpointdir/on_mounted.txt", O_CREAT, &f);
+        print_status_msg("  vfs_open(\"/mountpointdir/on_mounted.txt\", O_CREAT) result: ", ret);
+        if (ret == 0 && f != NULL) {
+            bytes_rw = vfs_write(f, write_data_mounted, write_len_mounted);
+            if (bytes_rw == (int)write_len_mounted) {
+                uart_puts("    Write to on_mounted.txt: SUCCESS\r\n");
+            } else {
+                uart_puts("    Write to on_mounted.txt: FAILURE\r\n");
+            }
+            vfs_close(f); f = NULL;
+        } else {
+            uart_puts("    Failed to create /mountpointdir/on_mounted.txt\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test M2 success).\r\n");
+    }
+
+    // 測試 M4: 讀取掛載檔案系統中的檔案
+    uart_puts("\r\n▍ Test M4: Reading from /mountpointdir/on_mounted.txt ...\r\n");
+    if (mount_ok) {
+        ret = vfs_open("/mountpointdir/on_mounted.txt", 0, &f); // No O_CREAT
+        print_status_msg("  vfs_open(\"/mountpointdir/on_mounted.txt\", 0) result: ", ret);
+        if (ret == 0 && f != NULL) {
+            memset(buffer, 0, sizeof(buffer));
+            bytes_rw = vfs_read(f, buffer, write_len_mounted);
+            if (bytes_rw == (int)write_len_mounted && strcmp(buffer, write_data_mounted) == 0) {
+                uart_puts("    Read from on_mounted.txt: SUCCESS. Data: '"); uart_puts(buffer); uart_puts("'\r\n");
+            } else {
+                uart_puts("    Read from on_mounted.txt: FAILURE. Read: '"); uart_puts(buffer); uart_puts("', Expected: '"); uart_puts(write_data_mounted); uart_puts("'\r\n");
+            }
+            vfs_close(f); f = NULL;
+        } else {
+            uart_puts("    Failed to open /mountpointdir/on_mounted.txt for reading\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test M2 success).\r\n");
+    }
+
+    // 測試 M5: 嘗試讀取原始檔案系統中的 pre_mount.txt (應該不可見)
+    uart_puts("\r\n▍ Test M5: Attempting to read /mountpointdir/pre_mount.txt (should fail or not exist) ...\r\n");
+    if (mount_ok) {
+        ret = vfs_open("/mountpointdir/pre_mount.txt", 0, &f);
+        print_status_msg("  vfs_open(\"/mountpointdir/pre_mount.txt\", 0) result: ", ret);
+        if (ret == ENOENT_VFS) {
+            uart_puts("    Correctly failed with ENOENT_VFS (file is hidden by mount).\r\n");
+        } else if (ret == 0 && f != NULL) {
+            uart_puts("    ERROR: File pre_mount.txt is accessible after mount!\r\n");
+            vfs_close(f); f = NULL;
+        } else {
+            uart_puts("    Unexpected result or error.\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test M2 success).\r\n");
+    }
+    
+    // 測試 M6: 在掛載點內建立子目錄
+    uart_puts("\r\n▍ Test M6: Creating directory /mountpointdir/mounted_subdir ...\r\n");
+    if (mount_ok) {
+        ret = vfs_mkdir("/mountpointdir/mounted_subdir");
+        print_status_msg("  vfs_mkdir(\"/mountpointdir/mounted_subdir\") result: ", ret);
+        if (ret == 0) {
+            // 測試 M7: 在掛載點的子目錄中建立檔案
+            uart_puts("\r\n▍ Test M7: Creating /mountpointdir/mounted_subdir/nested_file.txt ...\r\n");
+            ret = vfs_open("/mountpointdir/mounted_subdir/nested_file.txt", O_CREAT, &f);
+            print_status_msg("  vfs_open(\"/mountpointdir/mounted_subdir/nested_file.txt\", O_CREAT) result: ", ret);
+            if (ret == 0 && f != NULL) {
+                uart_puts("    Successfully created nested_file.txt.\r\n");
+                vfs_close(f); f = NULL;
+            } else {
+                uart_puts("    Failed to create nested_file.txt.\r\n");
+            }
+        } else {
+            uart_puts("    Failed to create /mountpointdir/mounted_subdir.\r\n");
+        }
+    } else {
+        uart_puts("  Skipped (dependent on Test M2 success).\r\n");
+    }
+
+    // TODO: Add unmount tests if vfs_unmount is implemented.
+    // For now, the mounted filesystem will persist.
+
+    uart_puts("--- Mount Test Suite Finished ---\r\n");
+}
+
 void main() {
     // Get the address of the device tree blob
     uint32_t dtb_address;
@@ -189,6 +498,11 @@ void main() {
     sched_init();
 
     timer_init();
+
+    vfs_init();
+
+    run_tmpfs_test_suite();
+    run_mount_tests(); // Add this line to call the new test suite
 
     // Lab5 Basic 1: Threads
     // sched_init();

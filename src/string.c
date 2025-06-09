@@ -36,6 +36,17 @@ unsigned int strlen(const char *s) {
     return len;
 }
 
+char* strdup(const char *s) {
+    unsigned int len = strlen(s);
+    char *dup = (char*)alloc(len + 1);
+    if (dup == NULL) return NULL;
+    for (unsigned int i = 0; i < len; i++) {
+        dup[i] = s[i];
+    }
+    dup[len] = '\0';
+    return dup;
+}
+
 
 void *memset(void *s, int c, unsigned int n) {
     unsigned char *p = s;
