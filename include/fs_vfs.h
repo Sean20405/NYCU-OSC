@@ -34,6 +34,7 @@ struct vnode {
     struct vnode_operations* v_ops;
     struct file_operations* f_ops;
     void* internal;
+    struct vnode* parent;
 };
 
 // file handle
@@ -81,7 +82,6 @@ int vfs_write(struct file* file, const void* buf, size_t len);
 int vfs_read(struct file* file, void* buf, size_t len);
 
 int vfs_mkdir(const char* pathname);
-int vfs_create(const char* pathname, struct file** target, int flags);
 int vfs_mount(const char* target, const char* filesystem);
 int vfs_lookup(const char* pathname, struct vnode** target);
 

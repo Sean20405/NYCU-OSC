@@ -19,6 +19,13 @@
 #define SYS_SIGNAL_NUM      8
 #define SYS_SIGKILL_NUM     9
 #define SYS_SIGRETURE_NUM   10
+#define SYS_OPEN_NUM        11
+#define SYS_CLOSE_NUM       12
+#define SYS_WRITE_NUM       13
+#define SYS_READ_NUM        14
+#define SYS_MKDIR_NUM       15
+#define SYS_MOUNT_NUM       16
+#define SYS_CHDIR_NUM       17
 
 void sys_getpid(struct TrapFrame *trapframe);
 void sys_uart_read(struct TrapFrame *trapframe);
@@ -31,6 +38,13 @@ void sys_kill(struct TrapFrame *trapframe);
 void sys_signal(struct TrapFrame *trapframe);
 void sys_sigkill(struct TrapFrame *trapframe);
 void sys_sigreturn(struct TrapFrame *trapframe);
+void sys_open(struct TrapFrame *trapframe);
+void sys_close(struct TrapFrame *trapframe);
+void sys_write(struct TrapFrame *trapframe);
+void sys_read(struct TrapFrame *trapframe);
+void sys_mkdir(struct TrapFrame *trapframe);
+void sys_mount(struct TrapFrame *trapframe);
+void sys_chdir(struct TrapFrame *trapframe);
 
 /* Wrapper function for syscall */
 int get_pid();
@@ -44,5 +58,12 @@ void kill(int pid);
 sighandler_t signal(int sig, sighandler_t handler);
 int sigkill(int pid, int sig);
 void sigreturn();
+int open(const char *pathname, int flags);
+int close(int fd);
+long write(int fd, const void *buf, unsigned long count);
+long read(int fd, void *buf, unsigned long count);
+int mkdir(const char *pathname, unsigned mode);
+int mount(const char *src, const char *target, const char *filesystem, unsigned long flags, const void *data);
+int chdir(const char *path);
 
 #endif /* SYSCALL_H */

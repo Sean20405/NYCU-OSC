@@ -501,8 +501,8 @@ void main() {
 
     vfs_init();
 
-    run_tmpfs_test_suite();
-    run_mount_tests(); // Add this line to call the new test suite
+    // run_tmpfs_test_suite();
+    // run_mount_tests();
 
     // Lab5 Basic 1: Threads
     // sched_init();

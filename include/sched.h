@@ -7,6 +7,7 @@
 #include "exec.h"
 #include "signal.h"
 #include "exception.h"
+#include "fs_vfs.h"
 
 #define MAX_TASKS 64
 #define DEFAULT_PRIORITY 10
@@ -15,6 +16,7 @@
 #define TASK_RUNNING 1
 #define TASK_BLOCKED 2
 #define TASK_EXITED 3
+#define THREAD_MAX_FD 16
 
 struct cpu_context {
     unsigned long x19;
@@ -46,6 +48,10 @@ struct ThreadTask {
     unsigned int pending_sig;           // A binary mask of pending signals
     sighandler_t sig_handlers[SIG_NUM]; // Signal handlers
     struct TrapFrame *sig_frame;        // Saved context before jumping to signal handler
+
+    // File system operations
+    struct vnode* cwd;  // Current working directory
+    struct file* fd_table[THREAD_MAX_FD];
     
     // Linked list pointers
     struct ThreadTask *next;

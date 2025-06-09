@@ -23,6 +23,7 @@ int register_filesystem(struct filesystem* fs) {
     return ENOMEM_VFS;
 }
 
+// TODO: refactor
 int vfs_open(const char* pathname, int flags, struct file** target) {
     if (pathname == NULL || target == NULL) {
         return EINVAL_VFS;
@@ -54,20 +55,33 @@ int vfs_open(const char* pathname, int flags, struct file** target) {
                     break;
                 }
             }
-            if (last_slash_index == -1) {  // TODO: support relative paths
-                free(path_copy_for_create);
-                return EINVAL_VFS; // No parent directory found
+            if (last_slash_index == -1) {  // Path is like 'newfile.txt'
+                struct vnode* cwd = get_current()->cwd;
+                if (cwd) {
+                    parent_vnode = cwd;
+                }
+                else {
+                    uart_puts("[vfs_open] Warning: CWD not set, creating relative to root.\n");
+                    parent_vnode = rootfs->root;
+                }
             }
-            path_copy_for_create[last_slash_index] = '\0';
-
-            // Look up for parent directory
-            ret = vfs_lookup(path_copy_for_create, &parent_vnode);
-            if (ret != 0) {
-                free(path_copy_for_create);
-                uart_puts("Parent directory lookup failed\n");
-                return ret;
+            else if (last_slash_index == 0) {  // Path starts with '/', e.g., "/file.txt"
+                int ret_lookup_root = vfs_lookup("/", &parent_vnode);
+                if (ret_lookup_root != 0) {
+                    free(path_copy_for_create);
+                    return ret_lookup_root;
+                }
             }
-
+            else {  // Path is like "/path/to/file" or "path/to/file"
+                path_copy_for_create[last_slash_index] = '\0';
+                ret = vfs_lookup(path_copy_for_create, &parent_vnode);
+                if (ret != 0) {
+                    free(path_copy_for_create);
+                    uart_puts("Parent directory lookup failed\n");
+                    return ret;
+                }
+            }
+        
             uart_puts("[vfs_open] Parent directory found: ");
             uart_puts(path_copy_for_create);
             uart_puts("(");
@@ -169,23 +183,20 @@ int vfs_mkdir(const char* pathname) {
     uart_puts(itoa(last_slash_index)); // Assuming you have a function itoa to convert int to string
     uart_puts("\r\n");
 
+    struct vnode* cwd = get_current()->cwd;
+
     struct vnode* parent_vnode = NULL;
     char* dir_name_to_create;
 
-    if (last_slash_index == -1) {
-        // For simplicity, let's assume it's relative to rootfs if no slash.
-        // This part might need adjustment based on how CWD is handled.
-        // If creating directly under root, parent is rootfs->root.
-        // However, vfs_lookup expects a path for the parent.
-        // A robust solution would involve a way to get CWD or handle "/" for root.
-        // For now, let's try to lookup "/" as parent if no slash is present.
-        // This is a simplification and might not be robust for all cases.
-        int ret_lookup_root = vfs_lookup("/", &parent_vnode);
-        if (ret_lookup_root != 0) {
+    if (last_slash_index == -1) { // No slash in path, e.g., "dirname"
+        // Relative to CWD
+        if (!cwd) {
+            uart_puts("[vfs_mkdir] Error: CWD not set for relative path.\r\n");
             free(path_copy);
-            return ret_lookup_root; // Cannot find root to create directory under
+            return EINTERR_VFS; // Internal error, CWD should be set
         }
-        dir_name_to_create = path_copy; // The whole path is the directory name
+        parent_vnode = cwd; // Parent is CWD
+        dir_name_to_create = path_copy;
     }
     else if (last_slash_index == 0) { // Path is like "/dirname"
         int ret_lookup_root = vfs_lookup("/", &parent_vnode);
@@ -195,14 +206,14 @@ int vfs_mkdir(const char* pathname) {
         }
         dir_name_to_create = path_copy + 1;
     }
-    else { // Path is like "/path/to/dirname"
+    else { // Path is like "/path/to/dirname" or "path/to/dirname"
         path_copy[last_slash_index] = '\0'; // Null-terminate parent path
         dir_name_to_create = path_copy + last_slash_index + 1;
 
         int ret_lookup = vfs_lookup(path_copy, &parent_vnode);
         if (ret_lookup != 0) {
-            free(path_copy); // Free before returning
-            return ret_lookup; // Parent directory not found
+            free(path_copy); 
+            return ret_lookup; 
         }
     }
 
@@ -298,12 +309,15 @@ int vfs_mount(const char* target_pathname, const char* filesystem_name) {
     }
     int setup_result = fs_to_mount->setup_mount(fs_to_mount, new_mount);
     if (setup_result != 0) {
+        target_vnode->mount = NULL; 
         free(new_mount);
         uart_puts("[vfs_mount] Filesystem setup_mount failed for: ");
         uart_puts(filesystem_name);
         uart_puts("\r\n");
         return setup_result;
     }
+
+    new_mount->root->parent = target_vnode;
 
     uart_puts("[vfs_mount] Mounted filesystem '");
     uart_puts(filesystem_name);
@@ -368,33 +382,74 @@ int vfs_lookup(const char* pathname, struct vnode** target) {
     }
 
     char* current_path_ptr = path_copy;
-    struct vnode* current_vnode = rootfs->root; // Start from root
+    struct vnode* current_vnode;
     char* component_name;
 
-    if (current_vnode == NULL) {
-        free(path_copy);
-        return EINTERR_VFS; // Root filesystem not mounted or root vnode not set (changed from -3)
-    }
-
-    // Handle absolute paths starting with '/'
+    // Determine starting vnode based on path type (absolute or relative)
     if (path_copy[0] == '/') {
-        // Skip leading slashes for get_next_component, it handles them.
-        // If the path is just "/", current_vnode (rootfs->root) is the target.
-        if (strlen(path_copy) == 1) {
-            *target = current_vnode;
-        }
+        current_vnode = rootfs->root;
     }
     else {
-        // TODO: Handle relative paths
-        // Relative paths are not explicitly handled here, assuming all paths are from root
-        // or current_vnode should be set to current working directory's vnode.
-        // For now, let's assume all paths are effectively absolute from rootfs.
-        uart_puts("[vfs_lookup] Relative paths not yet supported.\\n");
+        struct ThreadTask *curr = get_current();
+        struct vnode* cwd = curr->cwd;
+        if (cwd == NULL) {
+            uart_puts("[vfs_lookup] Error: CWD not set for relative path lookup.\n");
+            free(path_copy);
+            return EINTERR_VFS; // Internal error: CWD should always be initialized
+        }
+        current_vnode = cwd;
+    }
+    
+    // Special case: "/"
+    if (strcmp(pathname, "/") == 0) {
+        *target = rootfs->root;
         free(path_copy);
-        return EINVAL_VFS; // Or some other error like ENOSYS_VFS
+        return 0;
+    }
+    // Special case: "" or "." (relative to CWD)
+    if (strlen(pathname) == 0 || strcmp(pathname, ".") == 0) {
+        *target = current_vnode;
+        free(path_copy);
+        return 0;
     }
 
     while ((component_name = get_next_component(&current_path_ptr)) != NULL) {
+        if (strcmp(component_name, ".") == 0) {
+            continue;
+        }
+        if (strcmp(component_name, "..") == 0) {
+            if (current_vnode == rootfs->root) {
+                continue; // ".." at root, stay at root
+            }
+            else if (current_vnode->parent == NULL) {
+                uart_puts("[vfs_lookup] Error: '..' on a non-root vnode with NULL vfs_parent.\r\n");
+                free(path_copy);
+                return EINTERR_VFS;
+            }
+            else {
+                struct vnode* vfs_p = current_vnode->parent;
+                // Check if current_vnode is the root of a filesystem mounted on vfs_p
+                if (vfs_p->mount != NULL && vfs_p->mount->root == current_vnode) {
+                    if (vfs_p == rootfs->root) { // Mounted on global root
+                        current_vnode = rootfs->root;
+                    }
+                    else if (vfs_p->parent != NULL) {
+                        current_vnode = vfs_p->parent;
+                    }
+                    else {
+                        uart_puts("[vfs_lookup] Error: Mount directory (not root) has no vfs_parent for '..'.\r\n");
+                        free(path_copy);
+                        return EINTERR_VFS;
+                    }
+                }
+                else {  // Regular ".." - go to VFS parent.
+                    current_vnode = vfs_p;
+                }
+            }
+            *target = current_vnode;
+            continue;
+        }
+
         // If current_vnode is a mount point, look into its file system root
         if (current_vnode->mount != NULL) {
             uart_puts("[vfs_lookup] Current vnode '");
@@ -431,7 +486,7 @@ int vfs_lookup(const char* pathname, struct vnode** target) {
             uart_puts("' in path '");
             uart_puts(pathname);
             uart_puts("'. Error code: ");
-            uart_puts(itoa(result)); // Assuming you have a function to convert int to string
+            uart_puts(itoa(result));
             uart_puts("\r\n");
             return result; // Lookup failed
         }
@@ -465,5 +520,19 @@ void vfs_init() {
         return;
     }
     filesystems[0]->setup_mount(filesystems[0], rootfs);
-    uart_puts("VFS initialized successfully\n");
+    // Initialize CWD for the initial/current task
+    struct ThreadTask *initial_task = get_current(); 
+    if (initial_task != NULL) {
+        if (rootfs && rootfs->root) { // Ensure rootfs and its root are valid
+            rootfs->root->parent = NULL; // Explicitly set parent of global root to NULL
+            initial_task->cwd = rootfs->root;
+            uart_puts("VFS initialized successfully. CWD for the current task set to rootfs->root.\\r\\n");
+        }
+        else {
+            uart_puts("VFS initialization error: rootfs or rootfs->root is NULL. Cannot set CWD.\\r\\n");
+        }
+    }
+    else {
+        uart_puts("VFS initialization error: Initial task is NULL. Cannot set CWD.\\r\\n");
+    }
 }

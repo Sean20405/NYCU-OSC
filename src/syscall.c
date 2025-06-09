@@ -239,6 +239,247 @@ void sys_sigreturn(struct TrapFrame *trapframe) {
     return;
 }
 
+void sys_open(struct TrapFrame *trapframe) {
+    const char *pathname = (const char *)trapframe->x[0];
+    int flags = (int)trapframe->x[1];
+    if (pathname == NULL || pathname[0] == '\0') {
+        uart_puts("[WARN] sys_open: pathname is NULL or empty\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_open(");
+    uart_puts(pathname);
+    uart_puts(")\r\n");
+
+    struct ThreadTask *curr = get_current();
+    for (int i=0; i<THREAD_MAX_FD; ++i) {
+        if (!curr->fd_table[i]) {
+            uart_puts("[INFO] sys_open: found an empty slot ");
+            uart_puts(itoa(i));
+            uart_puts(" in fd_table\r\n");
+
+            // Look up the vnode
+            int ret = vfs_open(pathname, flags, &curr->fd_table[i]);
+            if (ret != 0) {
+                uart_puts("[WARN] sys_open: vfs_open failed\r\n");
+                trapframe->x[0] = -ret;
+                return;
+            }
+
+            uart_puts("[INFO] sys_open: opened file successfully, curr->fd_table[i] address @");
+            uart_hex((unsigned long)curr->fd_table[i]);
+            uart_puts(" (task ");
+            uart_puts(itoa(curr->id));
+            uart_puts(")\r\n");
+
+            trapframe->x[0] = i;
+            return;
+        }
+    }
+}
+
+void sys_close(struct TrapFrame *trapframe) {
+    int fd = (int)trapframe->x[0];
+    if (fd < 0 || fd >= THREAD_MAX_FD) {
+        uart_puts("[WARN] sys_close: invalid file descriptor\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_close(");
+    uart_puts(itoa(fd));
+    uart_puts(")\r\n");
+
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("[WARN] sys_close: current task is NULL\r\n");
+        return;
+    }
+
+    // Close the file
+    int ret = vfs_close(curr->fd_table[fd]);
+    trapframe->x[0] = ret;
+}
+
+void sys_write(struct TrapFrame *trapframe) {
+    // uart_puts("sys_write called\r\n");
+    int fd = (int)trapframe->x[0];
+    const void *buf = (const void *)trapframe->x[1];
+    unsigned long count = (unsigned int)trapframe->x[2];
+    if (fd < 0 || fd >= THREAD_MAX_FD) {
+        uart_puts("[WARN] sys_write: invalid file descriptor\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    if (buf == NULL || count == 0) {
+        uart_puts("[WARN] sys_write: buffer is NULL or count is zero\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_write(");
+    uart_puts(itoa(fd));
+    uart_puts(", buf, ");
+    uart_puts(itoa(count));
+    uart_puts(")\r\n");
+
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("[WARN] sys_write: current task is NULL\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    struct file *file = curr->fd_table[fd];
+    uart_puts("[INFO] sys_write: file address @");
+    uart_hex((unsigned long)file);
+    uart_puts(" (task ");
+    uart_puts(itoa(curr->id));
+    uart_puts(")\r\n");
+
+    if (file->vnode == NULL || file->f_ops == NULL || file->f_ops->write == NULL) {
+        uart_puts("[WARN] sys_write: file not open or write operation not supported\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    int ret = file->f_ops->write(file, buf, count);
+    if (ret < 0) {
+        uart_puts("[WARN] sys_write: write operation failed\r\n");
+        trapframe->x[0] = ret;
+        return;
+    }
+    trapframe->x[0] = ret;
+}
+
+void sys_read(struct TrapFrame *trapframe) {
+    int fd = (int)trapframe->x[0];
+    void *buf = (void *)trapframe->x[1];
+    unsigned long count = (unsigned long)trapframe->x[2];
+    if (fd < 0 || fd >= THREAD_MAX_FD) {
+        uart_puts("[WARN] sys_read: invalid file descriptor\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    uart_puts("[INFO] sys_read(");
+    uart_puts(itoa(fd));
+    uart_puts(", buf, ");
+    uart_puts(itoa(count));
+    uart_puts(")\r\n");
+
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("[WARN] sys_read: current task is NULL\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    struct file *file = curr->fd_table[fd];
+    if (file->vnode == NULL || file->f_ops == NULL || file->f_ops->read == NULL) {
+        uart_puts("[WARN] sys_read: file not open or read operation not supported\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    int ret = file->f_ops->read(file, buf, count);
+    if (ret < 0) {
+        uart_puts("[WARN] sys_read: read operation failed\r\n");
+        trapframe->x[0] = ret;
+        return;
+    }
+    trapframe->x[0] = ret;
+}
+
+void sys_mkdir(struct TrapFrame *trapframe) {
+    const char *pathname = (const char *)trapframe->x[0];
+    unsigned mode = (unsigned)trapframe->x[1];  // Not used
+    if (pathname == NULL || pathname[0] == '\0') {
+        uart_puts("[WARN] sys_mkdir: pathname is NULL or empty\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_mkdir(");
+    uart_puts(pathname);
+    uart_puts(")\r\n");
+
+    int ret = vfs_mkdir(pathname);
+    if (ret < 0) {
+        uart_puts("[WARN] sys_mkdir: vfs_mkdir failed\r\n");
+        trapframe->x[0] = ret;
+    }
+    else {
+        trapframe->x[0] = 0;  // return 0 for success
+    }
+}
+
+void sys_mount(struct TrapFrame *trapframe) {
+    // uart_puts("sys_mount called\r\n");
+    const char *src = (const char *)trapframe->x[0];  // Not used
+    const char *target = (const char *)trapframe->x[1];
+    const char *filesystem = (const char *)trapframe->x[2];
+    unsigned long flags = (unsigned long)trapframe->x[3];  // Not used
+    const void *data = (const void *)trapframe->x[4];  // Not used
+    if (target == NULL || target[0] == '\0') {
+        uart_puts("[WARN] sys_mount: target is NULL or empty\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+    if (filesystem == NULL || filesystem[0] == '\0') {
+        uart_puts("[WARN] sys_mount: filesystem is NULL or empty\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_mount(");
+    uart_puts(target);
+    uart_puts(", ");
+    uart_puts(filesystem);
+    uart_puts(")\r\n");
+
+    int ret = vfs_mount(target, filesystem);
+    if (ret < 0) {
+        uart_puts("[WARN] sys_mount: vfs_mount failed\r\n");
+        trapframe->x[0] = ret;  // return error code
+    }
+    else {
+        trapframe->x[0] = 0;  // return 0 for success
+    }
+}
+
+void sys_chdir(struct TrapFrame *trapframe) {
+    // uart_puts("sys_chdir called\r\n");
+    const char *path = (const char *)trapframe->x[0];
+    if (path == NULL || path[0] == '\0') {
+        uart_puts("[WARN] sys_chdir: path is NULL or empty\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    uart_puts("[INFO] sys_chdir(");
+    uart_puts(path);
+    uart_puts(")\r\n");
+
+    struct ThreadTask *curr = get_current();
+    if (curr == NULL) {
+        uart_puts("[WARN] sys_chdir: current task is NULL\r\n");
+        trapframe->x[0] = -1;  // return -1
+        return;
+    }
+
+    int ret = vfs_lookup(path, &curr->cwd);
+    if (ret < 0) {
+        uart_puts("[WARN] sys_chdir: vfs_lookup failed\r\n");
+        trapframe->x[0] = ret;  // return error code
+    }
+    else {
+        uart_puts("[INFO] sys_chdir: changed directory to ");
+        uart_puts(path);
+        uart_puts(" (");
+        uart_hex((unsigned long)curr->cwd);
+        uart_puts(")\r\n");
+        trapframe->x[0] = 0;  // return 0 for success
+    }
+}
+
 /* Wrapper function for syscall */
 int get_pid() {
     int ret;
@@ -368,4 +609,105 @@ void sigreturn() {
         "mov x8, 10 \n"
         "svc 0      \n"
     );
+}
+
+int open(const char *pathname, int flags) {
+    int ret;
+    asm volatile(
+        "mov x8, 11 \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(pathname), "r"(flags)
+    );
+    return ret;
+}
+
+int close(int fd) {
+    int ret;
+    asm volatile(
+        "mov x8, 12 \n"
+        "mov x0, %0 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(fd)
+    );
+    return ret;
+}
+
+long write(int fd, const void *buf, unsigned long count) {
+    long ret;
+    asm volatile(
+        "mov x8, 13 \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "mov x2, %2 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(fd), "r"(buf), "r"(count)
+    );
+    return ret;
+}
+
+long read(int fd, void *buf, unsigned long count) {
+    long ret;
+    asm volatile(
+        "mov x8, 14 \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "mov x2, %2 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(fd), "r"(buf), "r"(count)
+    );
+    return ret;
+}
+
+int mkdir(const char *pathname, unsigned mode) {
+    int ret;
+    asm volatile(
+        "mov x8, 15 \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(pathname), "r"(mode)
+    );
+    return ret;
+}
+
+int mount(const char *src, const char *target, const char *filesystem, unsigned long flags, const void *data) {
+    int ret;
+    asm volatile(
+        "mov x8, 16 \n"
+        "mov x0, %0 \n"
+        "mov x1, %1 \n"
+        "mov x2, %2 \n"
+        "mov x3, %3 \n"
+        "mov x4, %4 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(src), "r"(target), "r"(filesystem), "r"(flags), "r"(data)
+    );
+    return ret;
+}
+
+int chdir(const char *path) {
+    int ret;
+    asm volatile(
+        "mov x8, 17 \n"
+        "mov x0, %0 \n"
+        "svc 0      \n"
+        "mov %0, x0 \n"
+        : "=r"(ret)
+        : "r"(path)
+    );
+    return ret;
 }

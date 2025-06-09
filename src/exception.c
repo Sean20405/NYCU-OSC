@@ -106,6 +106,27 @@ void syscall_entry(struct TrapFrame *trapframe) {
         case SYS_SIGRETURE_NUM:
             sys_sigreturn(trapframe);
             break;
+        case SYS_OPEN_NUM:
+            sys_open(trapframe);
+            break;
+        case SYS_CLOSE_NUM:
+            sys_close(trapframe);
+            break;
+        case SYS_WRITE_NUM:
+            sys_write(trapframe);
+            break;
+        case SYS_READ_NUM:
+            sys_read(trapframe);
+            break;
+        case SYS_MKDIR_NUM:
+            sys_mkdir(trapframe);
+            break;
+        case SYS_MOUNT_NUM:
+            sys_mount(trapframe);
+            break;
+        case SYS_CHDIR_NUM:
+            sys_chdir(trapframe);
+            break;
         default:
             uart_puts("Unknown syscall number: ");
             uart_hex(syscall_num);

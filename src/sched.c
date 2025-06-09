@@ -123,6 +123,12 @@ struct ThreadTask* thread_create(void (*callback)(void)) {
     task->sig_frame = (struct TrapFrame *)alloc(sizeof(struct TrapFrame));
     task->next = NULL;
 
+    // Initialize file system operations
+    task->cwd = rootfs->root;
+    for (int i = 0; i < THREAD_MAX_FD; i++) {
+        task->fd_table[i] = NULL;
+    }
+
     memset((void*)&task->cpu_context, 0, sizeof(struct cpu_context));
     task->cpu_context.lr = (unsigned long)callback; // Set the entry point of the task
     task->cpu_context.sp = (unsigned long)task->user_stack + THREAD_STACK_SIZE;

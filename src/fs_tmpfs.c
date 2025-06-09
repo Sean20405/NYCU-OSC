@@ -154,6 +154,7 @@ int tmpfs_create_or_mkdir(struct vnode* dir_node, struct vnode** target, const c
     new_vnode->v_ops = &tmpfs_v_ops;
     new_vnode->f_ops = &tmpfs_f_ops;
     new_vnode->internal = new_internal;
+    new_vnode->parent = dir_node;
 
     parent_internal->children[parent_internal->num_children++] = new_vnode;
     *target = new_vnode;
